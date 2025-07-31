@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude AI Chat Interface</title>
+    <script src="https://js.puter.com/v2/"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 600px;
+            overflow: hidden;
+        }
+        
+        .header {
+            background: #6c63ff;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .status {
+            background: #f0f0f0;
+            padding: 10px;
+            text-align: center;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        
+        .status.ready {
+            background: #4caf50;
+            color: white;
+        }
+        
+        .status.error {
+            background: #f44336;
+            color: white;
+        }
+        
+        .chat-container {
+            height: 400px;
+            overflow-y: auto;
+            padding: 20px;
+            background: #fafafa;
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            animation: slideIn 0.3s ease;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .message.user {
+            text-align: left;
+        }
+        
+        .message.claude {
+            text-align: right;
+        }
+        
+        .message-bubble {
+            display: inline-block;
+            padding: 12px 18px;
+            border-radius: 18px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+        
+        .message.user .message-bubble {
+            background: #6c63ff;
+            color: white;
+        }
+        
+        .message.claude .message-bubble {
+            background: #e8e8e8;
+            color: #333;
+        }
+        
+        .message-time {
+            font-size: 12px;
+            color: #888;
+            margin-top: 5px;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .loading-dots {
+            display: inline-flex;
+            gap: 5px;
+        }
+        
+        .loading-dot {
+            width: 10px;
+            height: 10px;
+            background: #6c63ff;
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+        
+        .loading-dot:nth-child(1) { animation-delay: -0.32s; }
+        .loading-dot:nth-child(2) { animation-delay: -0.16s; }
+        
+        @keyframes bounce {
+            0%, 80%, 100% {
+                transform: scale(0);
+            }
+            40% {
+                transform: scale(1);
+            }
+        }
+        
+        #debug {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            max-width: 300px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Claude AI Assistant</h1>
+            <p>مساعد ذكي يعمل بتقنية Claude</p>
+        </div>
+        
+        <div id="status" class="status">
+            جاري تحميل Puter.js...
+        </div>
+        
+        <div id="chatContainer" class="chat-container">
+            <!-- الرسائل ستظهر هنا -->
+        </div>
+        
+        <div id="loading" class="loading" style="display: none;">
+            <div class="loading-dots">
+                <div class="loading-dot"></div>
+                <div class="loading-dot"></div>
+                <div class="loading-dot"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="debug"></div>
+    
+    <script>
+        // متغيرات عامة
+        let isReady = false;
+        let messageQueue = [];
+        
+        // دالة لإضافة رسائل التصحيح
+        function debug(message) {
+            const debugDiv = document.getElementById('debug');
+            const time = new Date().toLocaleTimeString();
+            debugDiv.innerHTML += `[${time}] ${message}<br>`;
+            debugDiv.scrollTop = debugDiv.scrollHeight;
+            console.log(message);
+        }
+        
+        // دالة لتحديث حالة الاتصال
+        function updateStatus(message, isError = false) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = isError ? 'status error' : 'status ready';
+        }
+        
+        // دالة لإضافة رسالة للمحادثة
+        function addMessage(content, isUser = false) {
+            const chatContainer = document.getElementById('chatContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user' : 'claude'}`;
+            
+            const time = new Date().toLocaleTimeString('ar-SA', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+            
+            messageDiv.innerHTML = `
+                <div class="message-bubble">${content}</div>
+                <div class="message-time">${time}</div>
+            `;
+            
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+        
+        // دالة لإظهار/إخفاء التحميل
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+        }
+        
+        // دالة للتواصل مع Android
+        function sendToAndroid(type, data) {
+            if (window.AndroidInterface) {
+                window.AndroidInterface.onWebMessage(JSON.stringify({
+                    type: type,
+                    data: data
+                }));
+                debug(`Sent to Android: ${type}`);
+            }
+        }
+        
+        // دالة لمعالجة الرسائل من Android
+        window.receiveFromAndroid = async function(message) {
+            debug(`Received from Android: ${message}`);
+            
+            if (!isReady) {
+                debug('Puter not ready, queuing message');
+                messageQueue.push(message);
+                return;
+            }
+            
+            // إضافة رسالة المستخدم
+            addMessage(message, true);
+            showLoading(true);
+            
+            try {
+                // إرسال لـ Claude
+                const response = await puter.ai.chat(message, {
+                    model: 'claude-sonnet-4'
+                });
+                
+                debug('Response received from Claude');
+                
+                // استخراج النص
+                let responseText = '';
+                if (response?.message?.content?.[0]?.text) {
+                    responseText = response.message.content[0].text;
+                } else if (typeof response === 'string') {
+                    responseText = response;
+                }
+                
+                // إضافة رد Claude
+                addMessage(responseText);
+                
+                // إرسال الرد لـ Android
+                sendToAndroid('response', responseText);
+                
+            } catch (error) {
+                debug(`Error: ${error.message}`);
+                sendToAndroid('error', error.message);
+                updateStatus('خطأ في الاتصال', true);
+            } finally {
+                showLoading(false);
+            }
+        };
+        
+        // تهيئة Puter.js
+        async function initializePuter() {
+            debug('Starting Puter initialization...');
+            
+            let attempts = 0;
+            const maxAttempts = 30;
+            
+            const checkInterval = setInterval(async () => {
+                attempts++;
+                debug(`Checking Puter... attempt ${attempts}`);
+                
+                if (window.puter && window.puter.ai && window.puter.ai.chat) {
+                    clearInterval(checkInterval);
+                    debug('✓ Puter.js loaded successfully!');
+                    
+                    // اختبار الاتصال
+                    try {
+                        debug('Testing Claude connection...');
+                        const test = await puter.ai.chat('test', {
+                            model: 'claude-sonnet-4'
+                        });
+                        
+                        debug('✓ Claude connection successful!');
+                        isReady = true;
+                        updateStatus('جاهز للمحادثة', false);
+                        sendToAndroid('ready', true);
+                        
+                        // معالجة الرسائل المؤجلة
+                        if (messageQueue.length > 0) {
+                            debug(`Processing ${messageQueue.length} queued messages`);
+                            for (const msg of messageQueue) {
+                                await receiveFromAndroid(msg);
+                            }
+                            messageQueue = [];
+                        }
+                        
+                    } catch (error) {
+                        debug(`✗ Claude test failed: ${error.message}`);
+                        updateStatus('فشل الاتصال بـ Claude', true);
+                        sendToAndroid('error', 'Connection test failed');
+                    }
+                    
+                } else if (attempts >= maxAttempts) {
+                    clearInterval(checkInterval);
+                    debug('✗ Failed to load Puter.js');
+                    updateStatus('فشل تحميل Puter.js', true);
+                    sendToAndroid('error', 'Failed to load Puter.js');
+                }
+            }, 1000);
+        }
+        
+        // بدء التهيئة عند تحميل الصفحة
+        window.addEventListener('load', () => {
+            debug('Page loaded, initializing...');
+            initializePuter();
+        });
+        
+        // رسالة ترحيبية
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                addMessage('مرحباً! أنا Claude، مساعدك الذكي. كيف يمكنني مساعدتك اليوم؟');
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
