@@ -6,6 +6,7 @@
     <title>Claude AI Chat Bridge</title>
     <script src="https://js.puter.com/v2/"></script>
     <style>
+        /* نفس الأنماط السابقة */
         * {
             margin: 0;
             padding: 0;
@@ -157,6 +158,7 @@
         // متغيرات عامة
         let isReady = false;
         let messageId = 0;
+        let messageQueue = [];
         
         // دالة لإضافة سجل
         function addLog(message, type = 'info') {
@@ -177,6 +179,7 @@
             document.getElementById('connectionInfo').textContent = 
                 ready ? 'متصل وجاهز' : 'غير متصل';
             document.getElementById('testButton').disabled = !ready;
+            isReady = ready;
         }
         
         // دالة استقبال الرسائل من Android
@@ -184,19 +187,33 @@
             const id = ++messageId;
             addLog(`📥 استلام رسالة #${id}: ${message}`, 'info');
             
+            // حفظ الرسالة في قائمة الانتظار
+            const messageData = {
+                id: id,
+                message: message,
+                timestamp: new Date().toISOString()
+            };
+            
             if (!isReady) {
-                addLog('⚠️ النظام غير جاهز بعد', 'error');
+                addLog('⚠️ النظام غير جاهز، إضافة إلى قائمة الانتظار', 'error');
+                messageQueue.push(messageData);
                 return JSON.stringify({
                     success: false,
-                    error: 'System not ready',
-                    messageId: id
+                    error: 'System not ready - queued',
+                    messageId: id,
+                    queued: true
                 });
             }
             
+            return await processMessage(messageData);
+        };
+        
+        // معالجة الرسائل
+        async function processMessage(messageData) {
             try {
                 addLog(`🔄 إرسال إلى Claude...`, 'info');
                 
-                const response = await puter.ai.chat(message, {
+                const response = await puter.ai.chat(messageData.message, {
                     model: 'claude-sonnet-4'
                 });
                 
@@ -209,22 +226,36 @@
                 
                 addLog(`✅ تم استلام الرد من Claude`, 'success');
                 
-                return JSON.stringify({
+                // حفظ الرد للاستعلام لاحقاً
+                window.lastResponse = {
                     success: true,
                     response: responseText,
-                    messageId: id,
+                    messageId: messageData.id,
                     timestamp: new Date().toISOString()
-                });
+                };
+                
+                return JSON.stringify(window.lastResponse);
                 
             } catch (error) {
                 addLog(`❌ خطأ: ${error.message}`, 'error');
                 return JSON.stringify({
                     success: false,
                     error: error.message,
-                    messageId: id
+                    messageId: messageData.id
                 });
             }
-        };
+        }
+        
+        // معالجة الرسائل المعلقة
+        async function processQueuedMessages() {
+            if (messageQueue.length > 0) {
+                addLog(`📋 معالجة ${messageQueue.length} رسالة معلقة...`, 'info');
+                for (const msg of messageQueue) {
+                    await processMessage(msg);
+                }
+                messageQueue = [];
+            }
+        }
         
         // دالة اختبار الاتصال
         async function testConnection() {
@@ -244,11 +275,20 @@
             }
         }
         
+        // دالة للحصول على آخر رد
+        window.getLastResponse = function() {
+            return JSON.stringify(window.lastResponse || {
+                success: false,
+                error: 'No response available'
+            });
+        };
+        
         // دالة للتحقق من الحالة
         window.getStatus = function() {
             return JSON.stringify({
                 ready: isReady,
                 messageCount: messageId,
+                queuedMessages: messageQueue.length,
                 timestamp: new Date().toISOString()
             });
         };
@@ -256,6 +296,11 @@
         // تهيئة Puter.js
         async function initializePuter() {
             addLog('🔧 بدء تهيئة Puter.js...', 'info');
+            
+            // التحقق من وجود Puter
+            if (!window.puter) {
+                addLog('⏳ انتظار تحميل Puter.js...', 'info');
+            }
             
             let attempts = 0;
             const maxAttempts = 30;
@@ -275,8 +320,10 @@
                         });
                         
                         addLog('✅ الاتصال بـ Claude يعمل!', 'success');
-                        isReady = true;
                         updateStatus('النظام جاهز للعمل', true);
+                        
+                        // معالجة الرسائل المعلقة
+                        await processQueuedMessages();
                         
                     } catch (error) {
                         addLog(`❌ فشل الاتصال بـ Claude: ${error.message}`, 'error');
@@ -288,7 +335,6 @@
                     addLog('❌ فشل تحميل Puter.js بعد 30 محاولة', 'error');
                     updateStatus('فشل تحميل المكتبة', false);
                 } else {
-                    // لا نسجل كل محاولة لتجنب ازدحام السجل
                     if (attempts % 5 === 0) {
                         addLog(`⏳ محاولة ${attempts}/${maxAttempts}...`, 'info');
                     }
@@ -302,11 +348,20 @@
             initializePuter();
         });
         
+        // إضافة دعم للاتصال من Android WebView
+        window.AndroidBridge = {
+            receiveMessage: window.receiveMessage,
+            getStatus: window.getStatus,
+            getLastResponse: window.getLastResponse
+        };
+        
         // معلومات إضافية للتطوير
-        console.log('Claude AI Bridge v1.0');
+        console.log('Claude AI Bridge v1.1');
         console.log('Available functions:');
         console.log('- window.receiveMessage(text) : Send message to Claude');
         console.log('- window.getStatus() : Get current system status');
+        console.log('- window.getLastResponse() : Get last Claude response');
+        console.log('- window.AndroidBridge : Android interface object');
     </script>
 </body>
 </html>
