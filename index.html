@@ -263,16 +263,60 @@
             align-items: center;
             justify-content: center;
             font-size: 18px;
+            transition: all 0.2s ease;
         }
         
-        .input-text {
+        .add-btn:hover, .menu-btn:hover, .voice-btn:hover, .waveform-btn:hover {
+            background: #333;
+            transform: scale(1.05);
+        }
+        
+        .input-field {
             flex: 1;
-            background: none;
-            border: none;
-            color: #999;
+            background: #2a2a2a;
+            border: 1px solid #333;
+            border-radius: 20px;
+            padding: 12px 16px;
+            color: #ffffff;
             font-size: 16px;
-            text-align: center;
             outline: none;
+            transition: all 0.2s ease;
+        }
+        
+        .input-field::placeholder {
+            color: #666;
+            text-align: center;
+        }
+        
+        .input-field:focus {
+            border-color: #4a9eff;
+            box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.2);
+        }
+        
+        .send-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: none;
+            background: #4a9eff;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: all 0.2s ease;
+            opacity: 0.5;
+        }
+        
+        .send-btn.active {
+            opacity: 1;
+            transform: scale(1);
+        }
+        
+        .send-btn:hover.active {
+            background: #3b82f6;
+            transform: scale(1.05);
         }
         
         /* Test Button */
@@ -407,11 +451,11 @@
     <!-- Bottom Input Area -->
     <div class="input-area">
         <div class="input-container">
-            <button class="add-btn">+</button>
-            <button class="menu-btn">☰</button>
-            <span class="input-text">Chat with Claude...</span>
-            <button class="voice-btn">🎤</button>
-            <button class="waveform-btn">🎵</button>
+            <button class="add-btn" title="إضافة ملف">+</button>
+            <button class="menu-btn" title="القائمة">☰</button>
+            <input type="text" class="input-field" placeholder="اكتب رسالتك هنا..." id="messageInput" onkeypress="handleKeyPress(event)" oninput="toggleSendButton()">
+            <button class="send-btn" id="sendBtn" onclick="sendMessage()" title="إرسال">→</button>
+            <button class="voice-btn" title="تسجيل صوتي">🎤</button>
         </div>
     </div>
     
@@ -431,6 +475,13 @@
             entry.textContent = `[${time}] ${message}`;
             logContent.appendChild(entry);
             logContent.scrollTop = logContent.scrollHeight;
+        }
+        
+        // دالة لإظهار/إخفاء السجل
+        function toggleLog() {
+            const logPanel = document.getElementById('logPanel');
+            logVisible = !logVisible;
+            logPanel.className = `log-panel ${logVisible ? 'show' : ''}`;
         }
         
         // دالة لتحديث الحالة
@@ -455,6 +506,7 @@
             
             isReady = ready;
             updateCounts();
+            toggleSendButton(); // تحديث حالة زر الإرسال
         }
         
         // دالة لتحديث العدادات
@@ -463,11 +515,53 @@
             document.getElementById('queueCount').textContent = messageQueue.length;
         }
         
-        // دالة لإظهار/إخفاء السجل
-        function toggleLog() {
-            const logPanel = document.getElementById('logPanel');
-            logVisible = !logVisible;
-            logPanel.className = `log-panel ${logVisible ? 'show' : ''}`;
+        // دالة لتفعيل/إلغاء تفعيل زر الإرسال
+        function toggleSendButton() {
+            const input = document.getElementById('messageInput');
+            const sendBtn = document.getElementById('sendBtn');
+            
+            if (input.value.trim().length > 0 && isReady) {
+                sendBtn.classList.add('active');
+            } else {
+                sendBtn.classList.remove('active');
+            }
+        }
+        
+        // دالة للتعامل مع ضغط Enter
+        function handleKeyPress(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+        
+        // دالة لإرسال الرسالة
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (message.length === 0 || !isReady) {
+                return;
+            }
+            
+            // مسح حقل الإدخال
+            input.value = '';
+            toggleSendButton();
+            
+            // إرسال الرسالة
+            try {
+                addLog(`📤 إرسال رسالة: ${message}`, 'info');
+                const result = await window.receiveMessage(message);
+                const parsed = JSON.parse(result);
+                
+                if (parsed.success) {
+                    addLog(`✅ تم الإرسال بنجاح!`, 'success');
+                } else {
+                    addLog(`⚠️ ${parsed.error}`, 'error');
+                }
+            } catch (error) {
+                addLog(`❌ خطأ في الإرسال: ${error.message}`, 'error');
+            }
         }
         
         // دالة استقبال الرسائل من Android
