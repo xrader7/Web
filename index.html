@@ -6,17 +6,17 @@
     <title>Claude AI Chat Bridge</title>
     <script src="https://js.puter.com/v2/"></script>
     <style>
-        /* نفس الأنماط السابقة */
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #1a1a2e;
-            color: #eee;
+            background: url('https://example.com/claude-background.jpg') no-repeat center center fixed; /* استبدل برابط صورة مشابهة */
+            background-size: cover;
+            color: #fff;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
@@ -24,31 +24,32 @@
             justify-content: center;
             padding: 20px;
         }
-        
+
         .container {
-            background: #16213e;
-            border-radius: 20px;
-            padding: 30px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            background: transparent;
+            padding: 20px;
             max-width: 600px;
             width: 100%;
+            text-align: center;
         }
-        
+
         h1 {
-            color: #0f4c75;
+            color: #fff;
             text-align: center;
             margin-bottom: 20px;
             font-size: 2em;
+            display: none; /* إخفاء العنوان ليتماشى مع التصميم */
         }
-        
+
         .status-box {
-            background: #0f3460;
+            background: rgba(0, 0, 0, 0.5);
             border-radius: 10px;
             padding: 20px;
             margin-bottom: 20px;
             text-align: center;
+            display: none; /* إخفاء مربع الحالة ليتماشى مع التصميم */
         }
-        
+
         .status-indicator {
             display: inline-block;
             width: 12px;
@@ -57,20 +58,20 @@
             margin-right: 10px;
             background: #ff4444;
         }
-        
+
         .status-indicator.ready {
             background: #44ff44;
             animation: pulse 2s infinite;
         }
-        
+
         @keyframes pulse {
             0% { box-shadow: 0 0 0 0 rgba(68, 255, 68, 0.7); }
             70% { box-shadow: 0 0 0 10px rgba(68, 255, 68, 0); }
             100% { box-shadow: 0 0 0 0 rgba(68, 255, 68, 0); }
         }
-        
+
         .log-box {
-            background: #0a0a0a;
+            background: rgba(0, 0, 0, 0.7);
             border-radius: 10px;
             padding: 15px;
             height: 300px;
@@ -78,36 +79,39 @@
             font-family: 'Courier New', monospace;
             font-size: 14px;
             line-height: 1.5;
+            margin-bottom: 20px;
+            display: none; /* إخفاء سجل الدخول ليتماشى مع التصميم الأساسي */
         }
-        
+
         .log-entry {
             margin-bottom: 5px;
             padding: 5px;
             border-left: 3px solid #0f4c75;
             padding-left: 10px;
         }
-        
+
         .log-entry.error {
             border-left-color: #ff4444;
             color: #ff6666;
         }
-        
+
         .log-entry.success {
             border-left-color: #44ff44;
             color: #66ff66;
         }
-        
+
         .info-box {
-            background: #0f3460;
+            background: rgba(0, 0, 0, 0.5);
             border-radius: 10px;
             padding: 15px;
             margin-top: 20px;
             text-align: center;
             font-size: 14px;
+            display: none; /* إخفاء مربع المعلومات ليتماشى مع التصميم */
         }
-        
+
         .test-button {
-            background: #0f4c75;
+            background: rgba(15, 76, 117, 0.8);
             color: white;
             border: none;
             padding: 10px 20px;
@@ -117,15 +121,60 @@
             width: 100%;
             font-size: 16px;
             transition: background 0.3s;
+            display: none; /* إخفاء الزر ليتماشى مع التصميم */
         }
-        
+
         .test-button:hover {
-            background: #1e5f8e;
+            background: rgba(30, 95, 142, 0.8);
         }
-        
+
         .test-button:disabled {
             background: #333;
             cursor: not-allowed;
+        }
+
+        .chat-input {
+            position: fixed;
+            bottom: 20px;
+            width: 90%;
+            max-width: 600px;
+            display: flex;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 20px;
+        }
+
+        .chat-input input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-size: 16px;
+            outline: none;
+        }
+
+        .chat-input button {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 20px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+
+        .chat-greeting {
+            font-size: 24px;
+            color: #fff;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .chat-icon {
+            font-size: 40px;
+            color: #ff6f61;
+            text-align: center;
+            margin-bottom: 10px;
         }
     </style>
 </head>
@@ -152,14 +201,22 @@
             <p>هذا الموقع يعمل كجسر بين تطبيق Android و Claude AI</p>
             <p>الحالة: <span id="connectionInfo">غير متصل</span></p>
         </div>
+
+        <div class="chat-icon">🌟</div>
+        <div class="chat-greeting">كيف يمكنني مساعدتك هذا المساء؟</div>
+
+        <div class="chat-input">
+            <input type="text" placeholder="ابدأ الدردشة..." id="chatInput">
+            <button onclick="sendMessage()">📤</button>
+        </div>
     </div>
-    
+
     <script>
         // متغيرات عامة
         let isReady = false;
         let messageId = 0;
         let messageQueue = [];
-        
+
         // دالة لإضافة سجل
         function addLog(message, type = 'info') {
             const logBox = document.getElementById('logBox');
@@ -170,7 +227,7 @@
             logBox.appendChild(entry);
             logBox.scrollTop = logBox.scrollHeight;
         }
-        
+
         // دالة لتحديث الحالة
         function updateStatus(text, ready = false) {
             document.getElementById('statusText').textContent = text;
@@ -181,13 +238,12 @@
             document.getElementById('testButton').disabled = !ready;
             isReady = ready;
         }
-        
+
         // دالة استقبال الرسائل من Android
         window.receiveMessage = async function(message) {
             const id = ++messageId;
             addLog(`📥 استلام رسالة #${id}: ${message}`, 'info');
             
-            // حفظ الرسالة في قائمة الانتظار
             const messageData = {
                 id: id,
                 message: message,
@@ -207,7 +263,22 @@
             
             return await processMessage(messageData);
         };
-        
+
+        // دالة إرسال الرسالة
+        function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            if (message) {
+                window.receiveMessage(message).then(response => {
+                    const parsed = JSON.parse(response);
+                    if (parsed.success) {
+                        addLog(`✅ الرد: ${parsed.response.substring(0, 50)}...`, 'success');
+                    }
+                    input.value = '';
+                });
+            }
+        }
+
         // معالجة الرسائل
         async function processMessage(messageData) {
             try {
@@ -226,7 +297,6 @@
                 
                 addLog(`✅ تم استلام الرد من Claude`, 'success');
                 
-                // حفظ الرد للاستعلام لاحقاً
                 window.lastResponse = {
                     success: true,
                     response: responseText,
@@ -245,7 +315,7 @@
                 });
             }
         }
-        
+
         // معالجة الرسائل المعلقة
         async function processQueuedMessages() {
             if (messageQueue.length > 0) {
@@ -256,7 +326,7 @@
                 messageQueue = [];
             }
         }
-        
+
         // دالة اختبار الاتصال
         async function testConnection() {
             addLog('🧪 بدء اختبار الاتصال...', 'info');
@@ -274,7 +344,7 @@
                 addLog(`❌ خطأ في الاختبار: ${error.message}`, 'error');
             }
         }
-        
+
         // دالة للحصول على آخر رد
         window.getLastResponse = function() {
             return JSON.stringify(window.lastResponse || {
@@ -282,7 +352,7 @@
                 error: 'No response available'
             });
         };
-        
+
         // دالة للتحقق من الحالة
         window.getStatus = function() {
             return JSON.stringify({
@@ -292,12 +362,11 @@
                 timestamp: new Date().toISOString()
             });
         };
-        
+
         // تهيئة Puter.js
         async function initializePuter() {
             addLog('🔧 بدء تهيئة Puter.js...', 'info');
             
-            // التحقق من وجود Puter
             if (!window.puter) {
                 addLog('⏳ انتظار تحميل Puter.js...', 'info');
             }
@@ -313,7 +382,6 @@
                     addLog('✅ تم تحميل Puter.js بنجاح!', 'success');
                     
                     try {
-                        // اختبار الاتصال بـ Claude
                         addLog('🔍 اختبار الاتصال بـ Claude...', 'info');
                         const test = await puter.ai.chat('test', {
                             model: 'claude-sonnet-4'
@@ -322,7 +390,6 @@
                         addLog('✅ الاتصال بـ Claude يعمل!', 'success');
                         updateStatus('النظام جاهز للعمل', true);
                         
-                        // معالجة الرسائل المعلقة
                         await processQueuedMessages();
                         
                     } catch (error) {
@@ -341,21 +408,18 @@
                 }
             }, 1000);
         }
-        
-        // بدء التهيئة عند تحميل الصفحة
+
         window.addEventListener('load', () => {
             addLog('📄 تم تحميل الصفحة', 'info');
             initializePuter();
         });
-        
-        // إضافة دعم للاتصال من Android WebView
+
         window.AndroidBridge = {
             receiveMessage: window.receiveMessage,
             getStatus: window.getStatus,
             getLastResponse: window.getLastResponse
         };
-        
-        // معلومات إضافية للتطوير
+
         console.log('Claude AI Bridge v1.1');
         console.log('Available functions:');
         console.log('- window.receiveMessage(text) : Send message to Claude');
