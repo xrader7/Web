@@ -11,239 +11,472 @@
             padding: 0;
             box-sizing: border-box;
         }
-
+        
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: url('https://example.com/claude-background.jpg') no-repeat center center fixed; /* استبدل برابط صورة مشابهة */
-            background-size: cover;
+            background: #1a1a1a;
+            color: #ffffff;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Header */
+        .header {
+            background: #1a1a1a;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #333;
+            min-height: 60px;
+        }
+        
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .back-btn {
+            width: 24px;
+            height: 24px;
+            border: none;
+            background: none;
             color: #fff;
-            min-height: 100vh;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .title {
+            font-size: 18px;
+            font-weight: 500;
+            color: #ffffff;
+        }
+        
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: #999;
+        }
+        
+        /* Upgrade Banner */
+        .upgrade-banner {
+            background: #2a2a2a;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #333;
+        }
+        
+        .upgrade-text {
+            color: #ffffff;
+            font-size: 14px;
+        }
+        
+        .upgrade-btn {
+            background: none;
+            border: none;
+            color: #4a9eff;
+            font-size: 14px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        
+        /* Main Content */
+        .main-content {
+            flex: 1;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             padding: 20px;
+            background: #1a1a1a;
+            position: relative;
         }
-
-        .container {
-            background: transparent;
-            padding: 20px;
-            max-width: 600px;
+        
+        /* Loading Spinner */
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 32px;
+            position: relative;
+        }
+        
+        .spinner {
             width: 100%;
-            text-align: center;
-        }
-
-        h1 {
-            color: #fff;
-            text-align: center;
-            margin-bottom: 20px;
-            font-size: 2em;
-            display: none; /* إخفاء العنوان ليتماشى مع التصميم */
-        }
-
-        .status-box {
-            background: rgba(0, 0, 0, 0.5);
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 20px;
-            text-align: center;
-            display: none; /* إخفاء مربع الحالة ليتماشى مع التصميم */
-        }
-
-        .status-indicator {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
+            height: 100%;
             border-radius: 50%;
-            margin-right: 10px;
-            background: #ff4444;
+            background: conic-gradient(from 0deg, transparent, #ff8c42, transparent);
+            animation: spin 2s linear infinite;
+            position: relative;
         }
-
-        .status-indicator.ready {
-            background: #44ff44;
-            animation: pulse 2s infinite;
+        
+        .spinner::before {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            right: 2px;
+            bottom: 2px;
+            background: #1a1a1a;
+            border-radius: 50%;
         }
-
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(68, 255, 68, 0.7); }
-            70% { box-shadow: 0 0 0 10px rgba(68, 255, 68, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(68, 255, 68, 0); }
+        
+        .spinner.ready {
+            background: conic-gradient(from 0deg, transparent, #4ade80, transparent);
         }
-
-        .log-box {
-            background: rgba(0, 0, 0, 0.7);
-            border-radius: 10px;
-            padding: 15px;
-            height: 300px;
-            overflow-y: auto;
-            font-family: 'Courier New', monospace;
-            font-size: 14px;
-            line-height: 1.5;
-            margin-bottom: 20px;
-            display: none; /* إخفاء سجل الدخول ليتماشى مع التصميم الأساسي */
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
-
-        .log-entry {
-            margin-bottom: 5px;
-            padding: 5px;
-            border-left: 3px solid #0f4c75;
-            padding-left: 10px;
-        }
-
-        .log-entry.error {
-            border-left-color: #ff4444;
-            color: #ff6666;
-        }
-
-        .log-entry.success {
-            border-left-color: #44ff44;
-            color: #66ff66;
-        }
-
-        .info-box {
-            background: rgba(0, 0, 0, 0.5);
-            border-radius: 10px;
-            padding: 15px;
-            margin-top: 20px;
+        
+        /* Welcome Message */
+        .welcome-message {
             text-align: center;
-            font-size: 14px;
-            display: none; /* إخفاء مربع المعلومات ليتماشى مع التصميم */
+            max-width: 400px;
         }
-
+        
+        .welcome-title {
+            font-size: 28px;
+            font-weight: 400;
+            color: #ffffff;
+            margin-bottom: 8px;
+            line-height: 1.3;
+        }
+        
+        .status-text {
+            font-size: 16px;
+            color: #999;
+            margin-bottom: 24px;
+        }
+        
+        /* Status Info */
+        .status-info {
+            background: #2a2a2a;
+            border-radius: 12px;
+            padding: 16px;
+            margin-top: 24px;
+            min-width: 300px;
+            text-align: right;
+        }
+        
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .status-row:last-child {
+            margin-bottom: 0;
+        }
+        
+        .status-label {
+            color: #999;
+            font-size: 14px;
+        }
+        
+        .status-value {
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .status-value.success {
+            color: #4ade80;
+        }
+        
+        .status-value.error {
+            color: #ef4444;
+        }
+        
+        /* Log Panel */
+        .log-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: #2a2a2a;
+            border-radius: 12px;
+            padding: 16px;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #333;
+            display: none;
+        }
+        
+        .log-panel.show {
+            display: block;
+        }
+        
+        .log-entry {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+            margin-bottom: 4px;
+            color: #ccc;
+        }
+        
+        .log-entry.error {
+            color: #ef4444;
+        }
+        
+        .log-entry.success {
+            color: #4ade80;
+        }
+        
+        .log-entry.info {
+            color: #4a9eff;
+        }
+        
+        /* Bottom Input Area */
+        .input-area {
+            padding: 16px;
+            background: #1a1a1a;
+            border-top: 1px solid #333;
+        }
+        
+        .input-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .add-btn, .menu-btn, .voice-btn, .waveform-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: none;
+            background: #2a2a2a;
+            color: #999;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+        
+        .input-text {
+            flex: 1;
+            background: none;
+            border: none;
+            color: #999;
+            font-size: 16px;
+            text-align: center;
+            outline: none;
+        }
+        
+        /* Test Button */
         .test-button {
-            background: rgba(15, 76, 117, 0.8);
+            background: #4a9eff;
             color: white;
             border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
+            padding: 12px 24px;
+            border-radius: 24px;
             cursor: pointer;
-            margin-top: 20px;
-            width: 100%;
-            font-size: 16px;
-            transition: background 0.3s;
-            display: none; /* إخفاء الزر ليتماشى مع التصميم */
+            font-size: 14px;
+            font-weight: 500;
+            margin-top: 16px;
+            transition: all 0.3s ease;
         }
-
+        
         .test-button:hover {
-            background: rgba(30, 95, 142, 0.8);
+            background: #3b82f6;
+            transform: translateY(-1px);
         }
-
+        
         .test-button:disabled {
             background: #333;
             cursor: not-allowed;
+            transform: none;
         }
-
-        .chat-input {
+        
+        /* Toggle Log Button */
+        .toggle-log {
             position: fixed;
-            bottom: 20px;
-            width: 90%;
-            max-width: 600px;
+            top: 20px;
+            left: 20px;
+            background: #2a2a2a;
+            border: none;
+            color: #999;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
             display: flex;
             align-items: center;
-            background: rgba(0, 0, 0, 0.5);
-            padding: 10px;
-            border-radius: 20px;
-        }
-
-        .chat-input input {
-            flex: 1;
-            background: transparent;
-            border: none;
-            color: #fff;
+            justify-content: center;
             font-size: 16px;
-            outline: none;
+            z-index: 1000;
         }
-
-        .chat-input button {
-            background: none;
-            border: none;
-            color: #fff;
-            font-size: 20px;
-            cursor: pointer;
-            margin-left: 10px;
-        }
-
-        .chat-greeting {
-            font-size: 24px;
-            color: #fff;
-            text-align: center;
-            margin-bottom: 20px;
-        }
-
-        .chat-icon {
-            font-size: 40px;
-            color: #ff6f61;
-            text-align: center;
-            margin-bottom: 10px;
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header {
+                padding: 8px 12px;
+            }
+            
+            .welcome-title {
+                font-size: 24px;
+            }
+            
+            .status-info {
+                min-width: auto;
+                width: 100%;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🤖 Claude AI Bridge</h1>
-        
-        <div class="status-box">
-            <div>
-                <span class="status-indicator" id="statusIndicator"></span>
-                <span id="statusText">جاري التهيئة...</span>
-            </div>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-left">
+            <button class="back-btn">←</button>
+            <span class="title">Claude Sonnet 4</span>
         </div>
-        
-        <div class="log-box" id="logBox">
-            <div class="log-entry">🚀 بدء تشغيل النظام...</div>
-        </div>
-        
-        <button class="test-button" id="testButton" onclick="testConnection()" disabled>
-            اختبار الاتصال
-        </button>
-        
-        <div class="info-box">
-            <p>هذا الموقع يعمل كجسر بين تطبيق Android و Claude AI</p>
-            <p>الحالة: <span id="connectionInfo">غير متصل</span></p>
-        </div>
-
-        <div class="chat-icon">🌟</div>
-        <div class="chat-greeting">كيف يمكنني مساعدتك هذا المساء؟</div>
-
-        <div class="chat-input">
-            <input type="text" placeholder="ابدأ الدردشة..." id="chatInput">
-            <button onclick="sendMessage()">📤</button>
+        <div class="header-right">
+            <span>169</span>
+            <span>KB/s</span>
+            <span>🌙</span>
+            <span>🔇</span>
+            <span>📶</span>
+            <span>📶</span>
+            <span>📶</span>
+            <span>WiFi</span>
+            <span>🔋78%</span>
         </div>
     </div>
-
+    
+    <!-- Upgrade Banner -->
+    <div class="upgrade-banner">
+        <span class="upgrade-text">Get more with Claude Pro</span>
+        <button class="upgrade-btn">Upgrade</button>
+    </div>
+    
+    <!-- Toggle Log Button -->
+    <button class="toggle-log" onclick="toggleLog()" title="إظهار/إخفاء السجل">📋</button>
+    
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Loading Spinner -->
+        <div class="loading-spinner">
+            <div class="spinner" id="spinner"></div>
+        </div>
+        
+        <!-- Welcome Message -->
+        <div class="welcome-message">
+            <h1 class="welcome-title" id="welcomeTitle">How can I help you this evening?</h1>
+            <p class="status-text" id="statusText">جاري التهيئة...</p>
+            
+            <button class="test-button" id="testButton" onclick="testConnection()" disabled>
+                اختبار الاتصال
+            </button>
+        </div>
+        
+        <!-- Status Info -->
+        <div class="status-info">
+            <div class="status-row">
+                <span class="status-label">الحالة:</span>
+                <span class="status-value" id="connectionStatus">غير متصل</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">الرسائل:</span>
+                <span class="status-value" id="messageCount">0</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">قائمة الانتظار:</span>
+                <span class="status-value" id="queueCount">0</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Log Panel -->
+    <div class="log-panel" id="logPanel">
+        <div id="logContent"></div>
+    </div>
+    
+    <!-- Bottom Input Area -->
+    <div class="input-area">
+        <div class="input-container">
+            <button class="add-btn">+</button>
+            <button class="menu-btn">☰</button>
+            <span class="input-text">Chat with Claude...</span>
+            <button class="voice-btn">🎤</button>
+            <button class="waveform-btn">🎵</button>
+        </div>
+    </div>
+    
     <script>
         // متغيرات عامة
         let isReady = false;
         let messageId = 0;
         let messageQueue = [];
-
+        let logVisible = false;
+        
         // دالة لإضافة سجل
         function addLog(message, type = 'info') {
-            const logBox = document.getElementById('logBox');
+            const logContent = document.getElementById('logContent');
             const entry = document.createElement('div');
             entry.className = `log-entry ${type}`;
             const time = new Date().toLocaleTimeString('ar-SA');
             entry.textContent = `[${time}] ${message}`;
-            logBox.appendChild(entry);
-            logBox.scrollTop = logBox.scrollHeight;
+            logContent.appendChild(entry);
+            logContent.scrollTop = logContent.scrollHeight;
         }
-
+        
         // دالة لتحديث الحالة
         function updateStatus(text, ready = false) {
-            document.getElementById('statusText').textContent = text;
-            document.getElementById('statusIndicator').className = 
-                `status-indicator ${ready ? 'ready' : ''}`;
-            document.getElementById('connectionInfo').textContent = 
-                ready ? 'متصل وجاهز' : 'غير متصل';
-            document.getElementById('testButton').disabled = !ready;
+            const statusText = document.getElementById('statusText');
+            const spinner = document.getElementById('spinner');
+            const connectionStatus = document.getElementById('connectionStatus');
+            const testButton = document.getElementById('testButton');
+            const welcomeTitle = document.getElementById('welcomeTitle');
+            
+            statusText.textContent = text;
+            spinner.className = `spinner ${ready ? 'ready' : ''}`;
+            connectionStatus.textContent = ready ? 'متصل وجاهز' : 'غير متصل';
+            connectionStatus.className = `status-value ${ready ? 'success' : 'error'}`;
+            testButton.disabled = !ready;
+            
+            if (ready) {
+                welcomeTitle.textContent = "How can I help you this evening?";
+            } else {
+                welcomeTitle.textContent = "جاري التحضير...";
+            }
+            
             isReady = ready;
+            updateCounts();
         }
-
+        
+        // دالة لتحديث العدادات
+        function updateCounts() {
+            document.getElementById('messageCount').textContent = messageId;
+            document.getElementById('queueCount').textContent = messageQueue.length;
+        }
+        
+        // دالة لإظهار/إخفاء السجل
+        function toggleLog() {
+            const logPanel = document.getElementById('logPanel');
+            logVisible = !logVisible;
+            logPanel.className = `log-panel ${logVisible ? 'show' : ''}`;
+        }
+        
         // دالة استقبال الرسائل من Android
         window.receiveMessage = async function(message) {
             const id = ++messageId;
             addLog(`📥 استلام رسالة #${id}: ${message}`, 'info');
+            updateCounts();
             
+            // حفظ الرسالة في قائمة الانتظار
             const messageData = {
                 id: id,
                 message: message,
@@ -253,6 +486,7 @@
             if (!isReady) {
                 addLog('⚠️ النظام غير جاهز، إضافة إلى قائمة الانتظار', 'error');
                 messageQueue.push(messageData);
+                updateCounts();
                 return JSON.stringify({
                     success: false,
                     error: 'System not ready - queued',
@@ -263,22 +497,7 @@
             
             return await processMessage(messageData);
         };
-
-        // دالة إرسال الرسالة
-        function sendMessage() {
-            const input = document.getElementById('chatInput');
-            const message = input.value.trim();
-            if (message) {
-                window.receiveMessage(message).then(response => {
-                    const parsed = JSON.parse(response);
-                    if (parsed.success) {
-                        addLog(`✅ الرد: ${parsed.response.substring(0, 50)}...`, 'success');
-                    }
-                    input.value = '';
-                });
-            }
-        }
-
+        
         // معالجة الرسائل
         async function processMessage(messageData) {
             try {
@@ -297,6 +516,7 @@
                 
                 addLog(`✅ تم استلام الرد من Claude`, 'success');
                 
+                // حفظ الرد للاستعلام لاحقاً
                 window.lastResponse = {
                     success: true,
                     response: responseText,
@@ -315,7 +535,7 @@
                 });
             }
         }
-
+        
         // معالجة الرسائل المعلقة
         async function processQueuedMessages() {
             if (messageQueue.length > 0) {
@@ -324,9 +544,10 @@
                     await processMessage(msg);
                 }
                 messageQueue = [];
+                updateCounts();
             }
         }
-
+        
         // دالة اختبار الاتصال
         async function testConnection() {
             addLog('🧪 بدء اختبار الاتصال...', 'info');
@@ -344,7 +565,7 @@
                 addLog(`❌ خطأ في الاختبار: ${error.message}`, 'error');
             }
         }
-
+        
         // دالة للحصول على آخر رد
         window.getLastResponse = function() {
             return JSON.stringify(window.lastResponse || {
@@ -352,7 +573,7 @@
                 error: 'No response available'
             });
         };
-
+        
         // دالة للتحقق من الحالة
         window.getStatus = function() {
             return JSON.stringify({
@@ -362,14 +583,10 @@
                 timestamp: new Date().toISOString()
             });
         };
-
+        
         // تهيئة Puter.js
         async function initializePuter() {
             addLog('🔧 بدء تهيئة Puter.js...', 'info');
-            
-            if (!window.puter) {
-                addLog('⏳ انتظار تحميل Puter.js...', 'info');
-            }
             
             let attempts = 0;
             const maxAttempts = 30;
@@ -382,14 +599,16 @@
                     addLog('✅ تم تحميل Puter.js بنجاح!', 'success');
                     
                     try {
+                        // اختبار الاتصال بـ Claude
                         addLog('🔍 اختبار الاتصال بـ Claude...', 'info');
                         const test = await puter.ai.chat('test', {
                             model: 'claude-sonnet-4'
                         });
                         
                         addLog('✅ الاتصال بـ Claude يعمل!', 'success');
-                        updateStatus('النظام جاهز للعمل', true);
+                        updateStatus('جاهز للاستخدام', true);
                         
+                        // معالجة الرسائل المعلقة
                         await processQueuedMessages();
                         
                     } catch (error) {
@@ -408,19 +627,23 @@
                 }
             }, 1000);
         }
-
+        
+        // بدء التهيئة عند تحميل الصفحة
         window.addEventListener('load', () => {
             addLog('📄 تم تحميل الصفحة', 'info');
+            updateStatus('جاري التهيئة...', false);
             initializePuter();
         });
-
+        
+        // إضافة دعم للاتصال من Android WebView
         window.AndroidBridge = {
             receiveMessage: window.receiveMessage,
             getStatus: window.getStatus,
             getLastResponse: window.getLastResponse
         };
-
-        console.log('Claude AI Bridge v1.1');
+        
+        // معلومات إضافية للتطوير
+        console.log('Claude AI Bridge v2.0 - Claude UI Style');
         console.log('Available functions:');
         console.log('- window.receiveMessage(text) : Send message to Claude');
         console.log('- window.getStatus() : Get current system status');
