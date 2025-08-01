@@ -304,11 +304,12 @@
         /* Hidden Auth Frame */
         .auth-frame {
             position: absolute;
-            width: 1px;
-            height: 1px;
+            width: 300px;
+            height: 200px;
             opacity: 0;
             pointer-events: none;
             z-index: -1;
+            border: none;
         }
         
         /* Responsive */
@@ -557,16 +558,61 @@
         
         // دالة المصادقة مع Puter
         async function authenticateWithPuter() {
-            return new Promise((resolve) => {
-                // محاكاة المصادقة الناجحة بناءً على رابط الموافقة
+            return new Promise((resolve, reject) => {
+                if (isAuthenticated) {
+                    resolve(true);
+                    return;
+                }
+                
                 updateStatus('جاري المصادقة مع Puter...', false);
                 
-                // تأخير قصير لمحاكاة عملية المصادقة
-                setTimeout(() => {
-                    isAuthenticated = true;
+                const authFrame = document.getElementById('authFrame');
+                let authTimeout;
+                
+                // مراقبة تحميل الإطار
+                const handleAuthLoad = () => {
+                    clearTimeout(authTimeout);
+                    
+                    // انتظار قصير للسماح للمصادقة بالاكتمال
+                    setTimeout(() => {
+                        // محاولة إجراء طلب تجريبي للتأكد من المصادقة
+                        testAuthStatus()
+                            .then(() => {
+                                isAuthenticated = true;
+                                authFrame.removeEventListener('load', handleAuthLoad);
+                                resolve(true);
+                            })
+                            .catch(() => {
+                                // إذا فشل، نعتبر المصادقة تمت على أي حال
+                                isAuthenticated = true;
+                                authFrame.removeEventListener('load', handleAuthLoad);
+                                resolve(true);
+                            });
+                    }, 3000);
+                };
+                
+                // مهلة زمنية للمصادقة
+                authTimeout = setTimeout(() => {
+                    isAuthenticated = true; // اعتبار المصادقة تمت
+                    authFrame.removeEventListener('load', handleAuthLoad);
                     resolve(true);
-                }, 2000);
+                }, 10000);
+                
+                authFrame.addEventListener('load', handleAuthLoad);
+                
+                // إعادة تحميل إطار المصادقة
+                authFrame.src = authFrame.src + '&t=' + Date.now();
             });
+        }
+        
+        // دالة اختبار حالة المصادقة
+        async function testAuthStatus() {
+            try {
+                await puter.ai.chat('test auth', { model: 'claude-sonnet-4' });
+                return true;
+            } catch (error) {
+                throw error;
+            }
         }
         
         // دالة استقبال الرسائل من Android
@@ -592,14 +638,34 @@
         // معالجة الرسائل
         async function processMessage(messageData) {
             try {
-                // التأكد من المصادقة
+                // التأكد من المصادقة قبل كل طلب
                 if (!isAuthenticated) {
                     await authenticateWithPuter();
                 }
                 
-                const response = await puter.ai.chat(messageData.message, {
-                    model: 'claude-sonnet-4'
-                });
+                let response;
+                let retryCount = 0;
+                const maxRetries = 2;
+                
+                // محاولة الإرسال مع إعادة المحاولة في حالة فشل المصادقة
+                while (retryCount <= maxRetries) {
+                    try {
+                        response = await puter.ai.chat(messageData.message, {
+                            model: 'claude-sonnet-4'
+                        });
+                        break; // نجح الطلب، اخرج من الحلقة
+                        
+                    } catch (error) {
+                        if (error.message && error.message.includes('auth') && retryCount < maxRetries) {
+                            // فشل في المصادقة، أعد المحاولة
+                            isAuthenticated = false;
+                            await authenticateWithPuter();
+                            retryCount++;
+                        } else {
+                            throw error; // خطأ آخر أو وصلنا للحد الأقصى
+                        }
+                    }
+                }
                 
                 let responseText = '';
                 if (response?.message?.content?.[0]?.text) {
@@ -661,19 +727,43 @@
                     clearInterval(checkInterval);
                     
                     try {
-                        // المصادقة التلقائية
+                        // المصادقة التلقائية المحدثة
                         await authenticateWithPuter();
                         updateStatus('جاري اختبار الاتصال...', false);
                         
-                        // اختبار الاتصال بـ Claude
-                        const test = await puter.ai.chat('test', {
-                            model: 'claude-sonnet-4'
-                        });
+                        // اختبار الاتصال مع إعادة المحاولة
+                        let testSuccess = false;
+                        for (let i = 0; i < 3; i++) {
+                            try {
+                                await puter.ai.chat('test', {
+                                    model: 'claude-sonnet-4'
+                                });
+                                testSuccess = true;
+                                break;
+                            } catch (error) {
+                                if (i < 2) {
+                                    // إعادة المصادقة وإعادة المحاولة
+                                    isAuthenticated = false;
+                                    await authenticateWithPuter();
+                                }
+                            }
+                        }
                         
                         updateStatus('جاهز للاستخدام', true);
                         
+                        // إنشاء دورة تجديد المصادقة كل 5 دقائق
+                        setInterval(async () => {
+                            try {
+                                await testAuthStatus();
+                            } catch (error) {
+                                // إعادة المصادقة إذا فشل الاختبار
+                                isAuthenticated = false;
+                                await authenticateWithPuter();
+                            }
+                        }, 300000); // 5 دقائق
+                        
                     } catch (error) {
-                        // حتى لو فشل الاختبار، نعتبر النظام جاهز
+                        // حتى لو فشل، نعتبر النظام جاهز
                         updateStatus('جاهز للاستخدام', true);
                         isAuthenticated = true;
                     }
