@@ -22,6 +22,20 @@
             flex-direction: column;
         }
         
+        /* Hidden iframe for silent authentication */
+        #authFrame {
+            position: absolute !important;
+            top: -9999px !important;
+            left: -9999px !important;
+            width: 1px !important;
+            height: 1px !important;
+            border: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+            z-index: -9999 !important;
+        }
+        
         /* Main Content */
         .main-content {
             flex: 1;
@@ -328,6 +342,9 @@
     </style>
 </head>
 <body>
+    <!-- Hidden iframe for silent authentication -->
+    <iframe id="authFrame" src="about:blank"></iframe>
+    
     <!-- Main Content -->
     <div class="main-content">
         <!-- Welcome Screen -->
@@ -382,80 +399,74 @@
     </div>
     
     <script>
-        // منع جميع النوافذ المنبثقة والحوارات
-        const originalOpen = window.open;
-        window.open = function(url, name, specs) {
-            console.log('Popup blocked:', url);
-            return { 
-                close: () => {},
-                focus: () => {},
-                blur: () => {},
-                postMessage: () => {}
+        // منع النوافذ المنبثقة بالكامل - تم تعزيزه
+        (function() {
+            // حفظ المراجع الأصلية
+            const originalOpen = window.open;
+            const originalShowModalDialog = window.showModalDialog;
+            
+            // منع window.open
+            window.open = function(url, name, specs, replace) {
+                console.log('🚫 Popup blocked:', url);
+                // إرجاع كائن وهمي لمنع الأخطاء
+                return {
+                    closed: false,
+                    close: function() {},
+                    focus: function() {},
+                    blur: function() {},
+                    postMessage: function() {}
+                };
             };
-        };
+            
+            // منع showModalDialog
+            if (window.showModalDialog) {
+                window.showModalDialog = function(url, args, options) {
+                    console.log('🚫 Modal dialog blocked:', url);
+                    return null;
+                };
+            }
+            
+            // منع النوافذ المنبثقة من خلال الأحداث
+            document.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A' && (e.target.target === '_blank' || e.target.href.includes('popup'))) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('🚫 Link popup blocked:', e.target.href);
+                }
+            }, true);
+            
+            // منع النوافذ المنبثقة من خلال النماذج
+            document.addEventListener('submit', function(e) {
+                if (e.target.target === '_blank') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('🚫 Form popup blocked');
+                }
+            }, true);
+        })();
         
-        // منع الحوارات
+        // منع alert و confirm و prompt
         window.alert = function(msg) {
-            console.log('Alert blocked:', msg);
-            return undefined;
+            console.log('🚫 Alert blocked:', msg);
         };
         
         window.confirm = function(msg) {
-            console.log('Confirm blocked:', msg);
+            console.log('🚫 Confirm blocked:', msg);
             return true;
         };
         
         window.prompt = function(msg, defaultText) {
-            console.log('Prompt blocked:', msg);
-            return defaultText || '';
+            console.log('🚫 Prompt blocked:', msg);
+            return defaultText || null;
         };
-        
-        // منع showModalDialog
-        if (window.showModalDialog) {
-            window.showModalDialog = function() {
-                console.log('Modal dialog blocked');
-                return null;
-            };
-        }
-        
-        // منع إنشاء عناصر modal جديدة
-        const originalCreateElement = document.createElement;
-        document.createElement = function(tagName) {
-            const element = originalCreateElement.call(this, tagName);
-            
-            // منع الحوارات من الظهور
-            if (tagName.toLowerCase() === 'dialog') {
-                element.showModal = function() {
-                    console.log('Dialog showModal blocked');
-                };
-                element.show = function() {
-                    console.log('Dialog show blocked');
-                };
-            }
-            
-            return element;
-        };
-        
-        // اعتراض أحداث النقر للنوافذ المنبثقة
-        document.addEventListener('click', function(e) {
-            const target = e.target;
-            if (target && (target.onclick || target.href)) {
-                const onclick = target.onclick ? target.onclick.toString() : '';
-                const href = target.href || '';
-                
-                if (onclick.includes('window.open') || onclick.includes('popup') || 
-                    href.includes('popup') || target.target === '_blank') {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    console.log('Popup click blocked');
-                }
-            }
-        }, true);
         
         // متغيرات عامة
         let isReady = false;
         let messageId = 0;
         let isAuthenticated = false;
+        let authFrame = null;
+        let authAttempts = 0;
+        const MAX_AUTH_ATTEMPTS = 3;
         
         // دالة لتحديث الحالة
         function updateStatus(text, ready = false, authenticated = null) {
@@ -492,16 +503,135 @@
             document.getElementById('messageCount').textContent = messageId;
         }
         
-        // دالة للمصادقة التلقائية بدون نوافذ منبثقة
-        async function automaticAuthentication() {
+        // دالة للتحقق من وجود cookies المصادقة
+        function checkAuthCookies() {
+            const cookies = document.cookie;
+            const puterCookies = [
+                'puter_auth',
+                'puter_session',
+                'puter_token',
+                'auth_token',
+                'session_id',
+                '__Host-next-auth.csrf-token',
+                '__Secure-next-auth.session-token'
+            ];
+            
+            for (const cookieName of puterCookies) {
+                if (cookies.includes(cookieName)) {
+                    console.log('✅ Auth cookie found:', cookieName);
+                    return true;
+                }
+            }
+            
+            // التحقق من localStorage أيضاً
+            try {
+                const authData = localStorage.getItem('puter_auth') || 
+                                localStorage.getItem('auth_token') ||
+                                localStorage.getItem('user_session');
+                if (authData) {
+                    console.log('✅ Auth data found in localStorage');
+                    return true;
+                }
+            } catch (e) {
+                console.log('Cannot access localStorage:', e);
+            }
+            
+            return false;
+        }
+        
+        // دالة للمصادقة الصامتة عبر iframe
+        async function silentAuthentication() {
             return new Promise((resolve) => {
-                updateStatus('جاري التهيئة التلقائية...', false, false);
+                authAttempts++;
+                console.log(`🔐 Starting auth attempt ${authAttempts}/${MAX_AUTH_ATTEMPTS}`);
                 
-                // تجاهل المصادقة التقليدية واستخدام الوضع التلقائي
-                setTimeout(() => {
-                    updateStatus('تم التهيئة بنجاح', false, true);
+                updateStatus(`جاري المصادقة... (${authAttempts}/${MAX_AUTH_ATTEMPTS})`, false, false);
+                
+                // التحقق من وجود cookies قبل البدء
+                if (checkAuthCookies()) {
+                    console.log('✅ Already authenticated with existing cookies');
+                    updateStatus('تم العثور على مصادقة سابقة', false, true);
                     resolve(true);
-                }, 2000);
+                    return;
+                }
+                
+                authFrame = document.getElementById('authFrame');
+                let resolved = false;
+                let timeout;
+                
+                // إعداد timeout للحماية من التجمد
+                timeout = setTimeout(() => {
+                    if (!resolved) {
+                        resolved = true;
+                        console.log(`⏰ Auth timeout (attempt ${authAttempts})`);
+                        
+                        if (authAttempts < MAX_AUTH_ATTEMPTS) {
+                            // إعادة المحاولة
+                            setTimeout(() => {
+                                silentAuthentication().then(resolve);
+                            }, 2000);
+                        } else {
+                            console.log('❌ Max auth attempts reached, proceeding without auth');
+                            updateStatus('المتابعة بدون مصادقة', false, false);
+                            resolve(false);
+                        }
+                    }
+                }, 20000); // زيادة الوقت إلى 20 ثانية
+                
+                // مراقبة تغيير cookies
+                const cookieChecker = setInterval(() => {
+                    if (resolved) {
+                        clearInterval(cookieChecker);
+                        return;
+                    }
+                    
+                    if (checkAuthCookies()) {
+                        resolved = true;
+                        clearInterval(cookieChecker);
+                        clearTimeout(timeout);
+                        console.log('✅ Authentication successful - cookies detected');
+                        updateStatus('تمت المصادقة بنجاح', false, true);
+                        resolve(true);
+                    }
+                }, 1000);
+                
+                // معالجة تحميل الـ iframe
+                authFrame.onload = function() {
+                    console.log('📄 Auth iframe loaded');
+                    updateStatus('جاري التحقق من المصادقة...', false, false);
+                    
+                    // انتظار إضافي للمصادقة
+                    setTimeout(() => {
+                        if (!resolved && checkAuthCookies()) {
+                            resolved = true;
+                            clearInterval(cookieChecker);
+                            clearTimeout(timeout);
+                            console.log('✅ Authentication completed');
+                            updateStatus('تمت المصادقة', false, true);
+                            resolve(true);
+                        }
+                    }, 5000);
+                };
+                
+                authFrame.onerror = function() {
+                    if (!resolved) {
+                        console.log('❌ Auth iframe error');
+                        // المحاولة مرة أخرى أو المتابعة
+                        if (authAttempts < MAX_AUTH_ATTEMPTS) {
+                            setTimeout(() => {
+                                silentAuthentication().then(resolve);
+                            }, 3000);
+                        } else {
+                            resolved = true;
+                            clearTimeout(timeout);
+                            resolve(false);
+                        }
+                    }
+                };
+                
+                // بدء تحميل صفحة المصادقة في الـ iframe المخفي
+                console.log('🔄 Loading auth URL in hidden iframe');
+                authFrame.src = 'https://puter.com/?embedded_in_popup=true&request_auth=true&silent=true';
             });
         }
         
@@ -626,28 +756,15 @@
             });
         };
         
-        // معالجة الرسائل بدون مصادقة
+        // معالجة الرسائل
         async function processMessage(messageData) {
             try {
                 updateStatus('جاري المعالجة...', true, isAuthenticated);
                 
-                // محاولة استخدام puter.ai مباشرة
-                let response;
-                try {
-                    response = await puter.ai.chat(messageData.message, {
-                        model: 'claude-sonnet-4'
-                    });
-                } catch (puterError) {
-                    // إذا فشل puter، استخدم رد افتراضي
-                    console.log('Puter AI error:', puterError);
-                    return JSON.stringify({
-                        success: true,
-                        response: `مرحباً! تم استلام رسالتك: "${messageData.message}". النظام يعمل بشكل صحيح ولكن خدمة الذكاء الاصطناعي قد تحتاج إلى وقت إضافي للتهيئة.`,
-                        messageId: messageData.id,
-                        timestamp: new Date().toISOString(),
-                        source: 'fallback'
-                    });
-                }
+                // استخدام puter.ai
+                const response = await puter.ai.chat(messageData.message, {
+                    model: 'claude-sonnet-4'
+                });
                 
                 let responseText = '';
                 if (response?.message?.content?.[0]?.text) {
@@ -664,8 +781,7 @@
                     success: true,
                     response: responseText,
                     messageId: messageData.id,
-                    timestamp: new Date().toISOString(),
-                    source: 'puter'
+                    timestamp: new Date().toISOString()
                 };
                 
                 return JSON.stringify(window.lastResponse);
@@ -698,8 +814,9 @@
             });
         };
         
-        // تهيئة Puter.js بدون مصادقة
+        // تهيئة Puter.js مع المصادقة الصامتة
         async function initializePuter() {
+            console.log('🚀 Initializing Puter.js...');
             updateStatus('جاري تحميل Puter.js...', false, false);
             
             let attempts = 0;
@@ -708,28 +825,42 @@
             const checkInterval = setInterval(async () => {
                 attempts++;
                 
-                if (window.puter && window.puter.ai) {
+                if (window.puter && window.puter.ai && window.puter.ai.chat) {
                     clearInterval(checkInterval);
+                    console.log('✅ Puter.js loaded successfully');
                     
                     try {
-                        // بدء التهيئة التلقائية بدلاً من المصادقة
-                        await automaticAuthentication();
+                        // بدء المصادقة الصامتة
+                        console.log('🔐 Starting silent authentication...');
+                        const authSuccess = await silentAuthentication();
                         
-                        updateStatus('جاري اختبار الاتصال...', false, true);
+                        updateStatus('جاري اختبار الاتصال...', false, authSuccess);
                         
-                        // اختبار بسيط للنظام
-                        updateStatus('جاهز للاستخدام', true, true);
+                        // اختبار الاتصال
+                        try {
+                            console.log('🧪 Testing connection...');
+                            const test = await puter.ai.chat('مرحبا', {
+                                model: 'claude-sonnet-4'
+                            });
+                            console.log('✅ Connection test successful');
+                            updateStatus('جاهز للاستخدام', true, authSuccess);
+                        } catch (testError) {
+                            console.log('⚠️ Test error (but proceeding):', testError);
+                            updateStatus('جاهز للاستخدام', true, authSuccess);
+                        }
                         
                     } catch (error) {
-                        console.log('Init error:', error);
-                        updateStatus('جاهز للاستخدام (وضع أساسي)', true, false);
+                        console.log('❌ Auth error:', error);
+                        updateStatus('جاهز للاستخدام (بدون مصادقة)', true, false);
                     }
                     
                 } else if (attempts >= maxAttempts) {
                     clearInterval(checkInterval);
+                    console.log('❌ Failed to load Puter.js');
                     updateStatus('فشل تحميل المكتبة', false, false);
                 } else {
                     if (attempts % 5 === 0) {
+                        console.log(`⏳ Loading attempt ${attempts}/${maxAttempts}`);
                         updateStatus(`جاري التحميل... (${attempts}/${maxAttempts})`, false, false);
                     }
                 }
@@ -738,8 +869,13 @@
         
         // بدء التهيئة عند تحميل الصفحة
         window.addEventListener('load', () => {
+            console.log('🌟 Page loaded, starting initialization...');
             updateStatus('جاري البدء...', false, false);
-            initializePuter();
+            
+            // تأخير قصير للتأكد من تحميل جميع المكونات
+            setTimeout(() => {
+                initializePuter();
+            }, 500);
         });
         
         // إضافة دعم للاتصال من Android WebView
@@ -749,7 +885,53 @@
             getLastResponse: window.getLastResponse
         };
         
-        console.log('Claude AI Bridge v5.0 - Complete Popup Prevention System');
+        // تنظيف الموارد عند إغلاق الصفحة
+        window.addEventListener('beforeunload', () => {
+            if (authFrame) {
+                authFrame.src = 'about:blank';
+            }
+        });
+        
+        // معالجة الأخطاء غير المتوقعة
+        window.addEventListener('error', (event) => {
+            console.log('🚨 Global error:', event.error);
+            if (!isReady) {
+                updateStatus('حدث خطأ، جاري إعادة المحاولة...', false, isAuthenticated);
+                setTimeout(() => {
+                    location.reload();
+                }, 3000);
+            }
+        });
+        
+        // منع النوافذ المنبثقة من العمليات غير المتزامنة
+        document.addEventListener('DOMContentLoaded', () => {
+            // إزالة أي elements يمكن أن تفتح نوافذ منبثقة
+            const removePopupElements = () => {
+                const popupSelectors = [
+                    'a[target="_blank"]',
+                    'form[target="_blank"]',
+                    '[onclick*="window.open"]',
+                    '[onclick*="popup"]'
+                ];
+                
+                popupSelectors.forEach(selector => {
+                    const elements = document.querySelectorAll(selector);
+                    elements.forEach(el => {
+                        if (el.getAttribute('target') === '_blank') {
+                            el.removeAttribute('target');
+                        }
+                        if (el.onclick && el.onclick.toString().includes('window.open')) {
+                            el.onclick = null;
+                        }
+                    });
+                });
+            };
+            
+            // تشغيل التنظيف كل ثانية
+            setInterval(removePopupElements, 1000);
+        });
+        
+        console.log('🛡️ Claude AI Bridge v5.0 - Enhanced Popup Protection & Silent Authentication');
     </script>
 </body>
 </html>
