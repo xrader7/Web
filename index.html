@@ -46,6 +46,56 @@
             display: none;
         }
         
+        /* Auth Screen */
+        .auth-screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            min-height: 400px;
+        }
+        
+        .auth-screen.show {
+            display: flex;
+        }
+        
+        .auth-message {
+            text-align: center;
+            max-width: 400px;
+            margin-bottom: 24px;
+        }
+        
+        .auth-title {
+            font-size: 24px;
+            font-weight: 400;
+            color: #ffffff;
+            margin-bottom: 16px;
+        }
+        
+        .auth-desc {
+            font-size: 16px;
+            color: #999;
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+        
+        .auth-btn {
+            background: #4a9eff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .auth-btn:hover {
+            background: #3b82f6;
+            transform: translateY(-1px);
+        }
+        
         /* Chat Container */
         .chat-container {
             flex: 1;
@@ -372,6 +422,15 @@
             </div>
         </div>
         
+        <!-- Auth Screen -->
+        <div class="auth-screen" id="authScreen">
+            <div class="auth-message">
+                <h2 class="auth-title">مطلوب تسجيل الدخول</h2>
+                <p class="auth-desc">يجب تسجيل الدخول إلى Puter لاستخدام Claude AI. سيتم توجيهك لصفحة المصادقة ثم العودة تلقائياً.</p>
+                <button class="auth-btn" onclick="startAuthentication()">تسجيل الدخول</button>
+            </div>
+        </div>
+        
         <!-- Chat Container -->
         <div class="chat-container" id="chatContainer">
             <!-- Typing Indicator -->
@@ -419,6 +478,107 @@
         let isReady = false;
         let messageId = 0;
         let isAuthenticated = false;
+        let authInProgress = false;
+        
+        // الحصول على URL الحالي
+        const currentUrl = window.location.href;
+        const baseUrl = window.location.origin + window.location.pathname;
+        
+        // دالة لحفظ وقراءة الحالة من localStorage
+        function saveAuthState(state) {
+            try {
+                localStorage.setItem('puterAuthState', JSON.stringify(state));
+            } catch (e) {
+                console.log('Cannot save to localStorage:', e);
+            }
+        }
+        
+        function getAuthState() {
+            try {
+                const state = localStorage.getItem('puterAuthState');
+                return state ? JSON.parse(state) : null;
+            } catch (e) {
+                console.log('Cannot read from localStorage:', e);
+                return null;
+            }
+        }
+        
+        // فحص حالة المصادقة عند العودة
+        function checkAuthReturn() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const authSuccess = urlParams.get('auth_success');
+            const authError = urlParams.get('auth_error');
+            
+            if (authSuccess === 'true') {
+                // نجحت المصادقة
+                saveAuthState({
+                    authenticated: true,
+                    timestamp: Date.now()
+                });
+                isAuthenticated = true;
+                
+                // إزالة parameters من URL
+                const cleanUrl = baseUrl;
+                window.history.replaceState({}, document.title, cleanUrl);
+                
+                // المتابعة مع التهيئة
+                continueAfterAuth();
+                return true;
+            } else if (authError) {
+                // خطأ في المصادقة
+                updateStatus('فشل في المصادقة', false);
+                showAuthScreen();
+                return false;
+            }
+            
+            return false;
+        }
+        
+        // دالة بدء المصادقة
+        function startAuthentication() {
+            if (authInProgress) return;
+            
+            authInProgress = true;
+            updateStatus('جاري إعادة التوجيه للمصادقة...', false);
+            
+            // حفظ الحالة الحالية
+            saveAuthState({
+                authenticating: true,
+                timestamp: Date.now(),
+                returnUrl: currentUrl
+            });
+            
+            // إنشاء URL المصادقة مع callback
+            const authUrl = `https://puter.com/?embedded_in_popup=false&request_auth=true&callback_url=${encodeURIComponent(baseUrl + '?auth_success=true')}`;
+            
+            // إعادة التوجيه للمصادقة
+            window.location.href = authUrl;
+        }
+        
+        // دالة المتابعة بعد المصادقة
+        function continueAfterAuth() {
+            updateStatus('تم تسجيل الدخول بنجاح، جاري التهيئة...', false);
+            hideAuthScreen();
+            showWelcomeScreen();
+            initializePuter();
+        }
+        
+        // دالة لإظهار شاشة المصادقة
+        function showAuthScreen() {
+            document.getElementById('welcomeScreen').classList.add('hidden');
+            document.getElementById('authScreen').classList.add('show');
+            document.getElementById('chatContainer').classList.remove('show');
+        }
+        
+        // دالة لإخفاء شاشة المصادقة
+        function hideAuthScreen() {
+            document.getElementById('authScreen').classList.remove('show');
+        }
+        
+        // دالة لإظهار الشاشة الرئيسية
+        function showWelcomeScreen() {
+            document.getElementById('welcomeScreen').classList.remove('hidden');
+        }
         
         // دالة لتحديث الحالة
         function updateStatus(text, ready = false) {
@@ -427,15 +587,19 @@
             const connectionStatus = document.getElementById('connectionStatus');
             const welcomeTitle = document.getElementById('welcomeTitle');
             
-            statusText.textContent = text;
-            spinner.className = `spinner ${ready ? 'ready' : ''}`;
-            connectionStatus.textContent = ready ? 'متصل وجاهز' : 'غير متصل';
-            connectionStatus.className = `status-value ${ready ? 'success' : 'error'}`;
+            if (statusText) statusText.textContent = text;
+            if (spinner) spinner.className = `spinner ${ready ? 'ready' : ''}`;
+            if (connectionStatus) {
+                connectionStatus.textContent = ready ? 'متصل وجاهز' : 'غير متصل';
+                connectionStatus.className = `status-value ${ready ? 'success' : 'error'}`;
+            }
             
-            if (ready) {
-                welcomeTitle.textContent = "How can I help you this evening?";
-            } else {
-                welcomeTitle.textContent = "جاري التحضير...";
+            if (welcomeTitle) {
+                if (ready) {
+                    welcomeTitle.textContent = "How can I help you this evening?";
+                } else {
+                    welcomeTitle.textContent = "جاري التحضير...";
+                }
             }
             
             isReady = ready;
@@ -445,7 +609,10 @@
         
         // دالة لتحديث العدادات
         function updateCounts() {
-            document.getElementById('messageCount').textContent = messageId;
+            const messageCount = document.getElementById('messageCount');
+            if (messageCount) {
+                messageCount.textContent = messageId;
+            }
         }
         
         // دالة لإضافة رسالة إلى الشات
@@ -455,6 +622,7 @@
             
             if (!chatContainer.classList.contains('show')) {
                 welcomeScreen.classList.add('hidden');
+                hideAuthScreen();
                 chatContainer.classList.add('show');
             }
             
@@ -486,16 +654,22 @@
         // دالة لإظهار مؤشر الكتابة
         function showTyping() {
             const typingIndicator = document.getElementById('typingIndicator');
-            typingIndicator.classList.add('show');
+            if (typingIndicator) {
+                typingIndicator.classList.add('show');
+            }
             
             const chatContainer = document.getElementById('chatContainer');
-            chatContainer.scrollTop = chatContainer.scrollHeight;
+            if (chatContainer) {
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
         }
         
         // دالة لإخفاء مؤشر الكتابة
         function hideTyping() {
             const typingIndicator = document.getElementById('typingIndicator');
-            typingIndicator.classList.remove('show');
+            if (typingIndicator) {
+                typingIndicator.classList.remove('show');
+            }
         }
         
         // دالة للتعامل مع ضغط Enter
@@ -511,24 +685,28 @@
             const input = document.getElementById('messageInput');
             const sendBtn = document.getElementById('sendBtn');
             
-            if (input.value.trim().length > 0 && isReady) {
-                sendBtn.classList.add('active');
-            } else {
-                sendBtn.classList.remove('active');
+            if (input && sendBtn) {
+                if (input.value.trim().length > 0 && isReady) {
+                    sendBtn.classList.add('active');
+                } else {
+                    sendBtn.classList.remove('active');
+                }
             }
         }
         
         // دالة لإرسال الرسالة
         async function sendMessage() {
             const input = document.getElementById('messageInput');
-            const message = input.value.trim();
+            const message = input ? input.value.trim() : '';
             
             if (message.length === 0 || !isReady) {
                 return;
             }
             
             addMessageToChat(message, true);
-            input.value = '';
+            if (input) {
+                input.value = '';
+            }
             toggleSendButton();
             showTyping();
             
@@ -547,19 +725,6 @@
                 hideTyping();
                 addMessageToChat(`خطأ في الإرسال: ${error.message}`, false);
             }
-        }
-        
-        // دالة المصادقة الصامتة بدون popups
-        async function authenticateWithPuter() {
-            return new Promise((resolve) => {
-                updateStatus('جاري المصادقة مع Puter...', false);
-                
-                // محاكاة المصادقة بدون نوافذ منبثقة
-                setTimeout(() => {
-                    isAuthenticated = true;
-                    resolve(true);
-                }, 2000);
-            });
         }
         
         // دالة استقبال الرسائل من Android
@@ -582,14 +747,17 @@
             });
         };
         
-        // معالجة الرسائل بدون popups
+        // معالجة الرسائل
         async function processMessage(messageData) {
             try {
                 if (!isAuthenticated) {
-                    await authenticateWithPuter();
+                    return JSON.stringify({
+                        success: false,
+                        error: 'Authentication required',
+                        messageId: messageData.id
+                    });
                 }
                 
-                // استخدام puter.ai بدون تفاعل مع المستخدم
                 const response = await puter.ai.chat(messageData.message, {
                     model: 'claude-sonnet-4'
                 });
@@ -639,7 +807,7 @@
             });
         };
         
-        // تهيئة Puter.js بدون popups
+        // تهيئة Puter.js
         async function initializePuter() {
             updateStatus('جاري تحميل Puter.js...', false);
             
@@ -653,10 +821,9 @@
                     clearInterval(checkInterval);
                     
                     try {
-                        await authenticateWithPuter();
                         updateStatus('جاري اختبار الاتصال...', false);
                         
-                        // اختبار صامت بدون تفاعل
+                        // اختبار الاتصال
                         const test = await puter.ai.chat('test', {
                             model: 'claude-sonnet-4'
                         });
@@ -664,8 +831,15 @@
                         updateStatus('جاهز للاستخدام', true);
                         
                     } catch (error) {
-                        updateStatus('جاهز للاستخدام', true);
-                        isAuthenticated = true;
+                        if (error.message && error.message.includes('auth')) {
+                            // خطأ مصادقة - إظهار شاشة المصادقة
+                            updateStatus('مطلوب تسجيل الدخول', false);
+                            showAuthScreen();
+                            isAuthenticated = false;
+                        } else {
+                            // خطأ آخر - المتابعة
+                            updateStatus('جاهز للاستخدام', true);
+                        }
                     }
                     
                 } else if (attempts >= maxAttempts) {
@@ -679,10 +853,25 @@
             }, 1000);
         }
         
-        // بدء التهيئة عند تحميل الصفحة
+        // بدء التطبيق
         window.addEventListener('load', () => {
-            updateStatus('جاري البدء...', false);
-            initializePuter();
+            // فحص العودة من المصادقة أولاً
+            if (checkAuthReturn()) {
+                return; // العودة من المصادقة - سيتم التعامل معها
+            }
+            
+            // فحص الحالة المحفوظة
+            const savedState = getAuthState();
+            if (savedState && savedState.authenticated && (Date.now() - savedState.timestamp < 24 * 60 * 60 * 1000)) {
+                // المصادقة صالحة لمدة 24 ساعة
+                isAuthenticated = true;
+                updateStatus('جاري البدء...', false);
+                initializePuter();
+            } else {
+                // حاجة لمصادقة جديدة
+                updateStatus('بحاجة لتسجيل الدخول', false);
+                showAuthScreen();
+            }
         });
         
         // إضافة دعم للاتصال من Android WebView
@@ -692,7 +881,7 @@
             getLastResponse: window.getLastResponse
         };
         
-        console.log('Claude AI Bridge v3.1 - No Popups & Direct Mode');
+        console.log('Claude AI Bridge v4.0 - Redirect Auth System');
     </script>
 </body>
 </html>
