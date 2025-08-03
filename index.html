@@ -190,54 +190,67 @@
             document.getElementById('messageCount').textContent = messageId;
         }
 
-        // المصادقة الصامتة عبر iframe مع منع أي نافذة منبثقة
+        // مصادقة صامتة دقيقة عبر iframe + postMessage (بدون أي popups أو إعادة توجيه)
         async function silentAuthentication() {
             return new Promise((resolve) => {
                 updateStatus('جاري الاتصال بـ Puter...', false, false);
 
                 authFrame = document.getElementById('authFrame');
-
                 let finished = false;
-                const finish = (ok) => {
+
+                let finish = (ok, note) => {
                     if (finished) return;
                     finished = true;
-                    updateStatus(ok ? 'المصادقة مكتملة' : 'تخطي المصادقة (افتراضيًا)', false, true);
-                    resolve(true); // نعتبرها مصادقة لأجل حفظ المنطق الأصلي ومنع إعادة التوجيه
-                };
-
-                // حماية من التعليق
-                const hardTimeout = setTimeout(() => {
-                    console.log('Authentication hard-timeout, proceeding silently');
-                    finish(true);
-                }, 15000);
-
-                // مراقبة التحميل داخل iframe (بدون أي إعادة توجيه للمستخدم)
-                authFrame.onload = function() {
-                    updateStatus('جاري المصادقة...', false, false);
-                    // انتظر قليلًا لإتاحة الوقت للكوكيز أن تُكتب
-                    setTimeout(() => {
-                        clearTimeout(hardTimeout);
-                        finish(true);
-                    }, 2500);
-                };
-
-                // محاولة الكشف الدوري (لن نخرق SOP، مجرد فحص سلِم)
-                const poll = setInterval(() => {
-                    try {
-                        // قد يفشل الوصول عبر النطاقات المختلفة وهذا طبيعي
-                        void authFrame.contentWindow;
-                    } catch(e) {
-                        // يعتبر مؤشرًا أن الصفحة الخارجية محملة
-                        console.log('Cross-origin access blocked (expected)');
+                    if (ok) {
+                        updateStatus(note || 'المصادقة مكتملة', false, true);
+                    } else {
+                        updateStatus(note || 'تعذر المصادقة، المتابعة بدون مصادقة', false, false);
                     }
+                    resolve(ok);
+                };
+
+                const hardTimeout = setTimeout(() => {
+                    console.warn('Auth hard-timeout reached. Proceeding as authenticated to keep UX smooth.');
+                    finish(true, 'تم افتراض المصادقة بعد المهلة');
+                }, 20000);
+
+                const onMessage = (event) => {
+                    try {
+                        const originOk = typeof event.origin === 'string' && event.origin.includes('puter.com');
+                        if (!originOk) return;
+                        if (event.data && (event.data.auth === 'success' || event.data === 'auth_success')) {
+                            clearTimeout(hardTimeout);
+                            window.removeEventListener('message', onMessage);
+                            console.log('Auth via postMessage received:', event.data);
+                            finish(true, 'تم تأكيد المصادقة عبر postMessage');
+                        }
+                    } catch (e) {
+                        console.log('postMessage parse error:', e);
+                    }
+                };
+                window.addEventListener('message', onMessage);
+
+                const poll = setInterval(() => {
+                    try { void authFrame.contentWindow; } catch(e) { /* expected cross-origin */ }
                 }, 1000);
 
-                // تنظيف عند الانتهاء
-                const cleanup = () => { clearInterval(poll); };
+                const cleanup = () => {
+                    clearTimeout(hardTimeout);
+                    clearInterval(poll);
+                    window.removeEventListener('message', onMessage);
+                };
                 const originalFinish = finish;
-                finish = (ok) => { cleanup(); originalFinish(ok); };
+                finish = (ok, note) => { cleanup(); originalFinish(ok, note); };
 
-                // تحميل رابط المصادقة داخل iframe المخفي (بدون أي popups أو إعادة توجيه)
+                authFrame.onload = function() {
+                    console.log('Auth iframe loaded.');
+                    updateStatus('جاري المصادقة...', false, false);
+                    // في حال عدم وجود postMessage من puter، نمنح وقتاً لكتابة الكوكيز ثم نكمل
+                    setTimeout(() => {
+                        finish(true, 'تمت المصادقة (افتراضيًا بعد التحميل)');
+                    }, 3000);
+                };
+
                 authFrame.src = 'https://puter.com/?embedded_in_popup=true&request_auth=true';
             });
         }
@@ -364,12 +377,16 @@
             });
         };
 
-        // معالجة الرسائل
+        // معالجة الرسائل الفعلية عبر puter.ai
         async function processMessage(messageData) {
             try {
                 updateStatus('جاري المعالجة...', true, isAuthenticated);
 
-                // استخدام puter.ai
+                if (!window.puter || !window.puter.ai || !window.puter.ai.chat) {
+                    console.error('puter.ai.chat غير متاح. تأكد من تحميل js.puter.com/v2/ بنجاح.');
+                    throw new Error('خدمة Puter غير جاهزة');
+                }
+
                 const response = await puter.ai.chat(messageData.message, {
                     model: 'claude-sonnet-4'
                 });
@@ -395,10 +412,12 @@
                 return JSON.stringify(window.lastResponse);
 
             } catch (error) {
+                console.error('processMessage error:', error);
+                const msg = (error && (error.message || error.toString())) || 'Unknown error';
                 updateStatus('جاهز للاستخدام', true, isAuthenticated);
                 return JSON.stringify({
                     success: false,
-                    error: error.message,
+                    error: msg,
                     messageId: messageData.id
                 });
             }
@@ -422,7 +441,7 @@
             });
         };
 
-        // تهيئة Puter.js مع المصادقة الصامتة
+        // تهيئة Puter.js + مصادقة صامتة
         async function initializePuter() {
             updateStatus('جاري تحميل Puter.js...', false, false);
 
@@ -436,30 +455,33 @@
                     clearInterval(checkInterval);
 
                     try {
-                        // بدء المصادقة الصامتة عبر iframe بالرابط المحدد (بدون أي إعادة توجيه أو popup)
-                        await silentAuthentication();
+                        const authOK = await silentAuthentication();
 
-                        updateStatus('جاري اختبار الاتصال...', false, true);
+                        updateStatus('جاري اختبار الاتصال...', false, !!authOK);
 
-                        // اختبار الاتصال
                         try {
                             const test = await puter.ai.chat('test', { model: 'claude-sonnet-4' });
-                            updateStatus('جاهز للاستخدام', true, true);
+                            console.log('Puter chat test response:', test);
+                            updateStatus('جاهز للاستخدام', true, !!authOK);
                         } catch (testError) {
-                            console.log('Test error:', testError);
-                            // حتى لو فشل الاختبار، نُظهر جاهز لأن الهدف منع المقاطعة للمستخدم
-                            updateStatus('جاهز للاستخدام', true, true);
+                            console.error('Test chat failed:', testError);
+                            const isAuthErr = (testError && (testError.status === 401 || String(testError).includes('401')));
+                            if (isAuthErr) {
+                                updateStatus('غير مصادق (فشل الاختبار 401). أعد المحاولة لاحقًا.', false, false);
+                            } else {
+                                updateStatus('جاهز للاستخدام (تحذير: فشل اختبار الدردشة)', true, !!authOK);
+                            }
                         }
 
                     } catch (error) {
-                        console.log('Auth error:', error);
-                        // نبقي المنطق الأصلي: نعلن الجاهزية لكن دون مصادقة مؤكدة
+                        console.error('Auth error:', error);
                         updateStatus('جاهز للاستخدام (بدون مصادقة)', true, false);
                     }
 
                 } else if (attempts >= maxAttempts) {
                     clearInterval(checkInterval);
-                    updateStatus('فشل تحميل المكتبة', false, false);
+                    updateStatus('فشل تحميل مكتبة Puter', false, false);
+                    console.error('Failed to load puter.js API within time.');
                 } else {
                     if (attempts % 5 === 0) {
                         updateStatus(`جاري التحميل... (${attempts}/${maxAttempts})`, false, false);
@@ -481,7 +503,7 @@
             getLastResponse: window.getLastResponse
         };
 
-        console.log('Claude AI Bridge v4.1 - Silent Authentication via hidden iframe without popups');
+        console.log('Claude AI Bridge v4.2 - Robust Silent Auth + Diagnostics');
     </script>
 </body>
 </html>
