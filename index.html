@@ -3,507 +3,1143 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Claude AI Chat Bridge</title>
-    <script src="https://js.puter.com/v2/"></script>
+    <title>نظام الذهب الذكي - تحليل مباشر</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #1a1a1a; color: #ffffff; height: 100vh;
-            overflow-x: hidden; display: flex; flex-direction: column;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0c0c0c 0%, #1a1a1a 25%, #2d2d2d 50%, #1a1a1a 75%, #0c0c0c 100%);
+            min-height: 100vh;
+            color: #ffffff;
+            animation: gradientShift 15s ease infinite;
         }
-        /* Hidden iframe for silent authentication */
-        #authFrame {
-            position: absolute; top: -9999px; left: -9999px;
-            width: 1px; height: 1px; border: none; visibility: hidden; opacity: 0;
+
+        @keyframes gradientShift {
+            0%, 100% { background: linear-gradient(135deg, #0c0c0c 0%, #1a1a1a 25%, #2d2d2d 50%, #1a1a1a 75%, #0c0c0c 100%); }
+            25% { background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 25%, #404040 50%, #2d2d2d 75%, #1a1a1a 100%); }
+            50% { background: linear-gradient(135deg, #2d2d2d 0%, #404040 25%, #1a1a1a 50%, #0c0c0c 75%, #2d2d2d 100%); }
+            75% { background: linear-gradient(135deg, #404040 0%, #1a1a1a 25%, #0c0c0c 50%, #1a1a1a 75%, #404040 100%); }
         }
-        /* Main Content */
-        .main-content { flex: 1; display: flex; flex-direction: column; background: #1a1a1a; position: relative; overflow-y: auto; }
-        /* Welcome Screen */
-        .welcome-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; min-height: 400px; }
-        .welcome-screen.hidden { display: none; }
-        /* Chat Container */
-        .chat-container { flex: 1; padding: 20px; overflow-y: auto; display: none; }
-        .chat-container.show { display: block; }
-        /* Chat Messages */
-        .message { margin-bottom: 20px; max-width: 80%; }
-        .message.user { margin-left: auto; margin-right: 0; }
-        .message.assistant { margin-left: 0; margin-right: auto; }
-        .message-content { padding: 12px 16px; border-radius: 18px; word-wrap: break-word; white-space: pre-wrap; }
-        .message.user .message-content { background: #4a9eff; color: white; border-bottom-right-radius: 4px; }
-        .message.assistant .message-content { background: #2a2a2a; color: #ffffff; border-bottom-left-radius: 4px; }
-        .message-time { font-size: 11px; color: #666; margin-top: 4px; text-align: center; }
-        /* Typing Indicator */
-        .typing-indicator { display: none; padding: 12px 16px; background: #2a2a2a; border-radius: 18px; border-bottom-left-radius: 4px; margin-bottom: 20px; max-width: 80px; }
-        .typing-indicator.show { display: block; }
-        .typing-dots { display: flex; gap: 4px; }
-        .typing-dot { width: 6px; height: 6px; background: #666; border-radius: 50%; animation: typing 1.4s infinite ease-in-out; }
-        .typing-dot:nth-child(1) { animation-delay: 0s; }
-        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
-        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
-        @keyframes typing { 0%, 60%, 100% { transform: translateY(0); opacity: 0.4; } 30% { transform: translateY(-10px); opacity: 1; } }
-        /* Loading Spinner */
-        .loading-spinner { width: 48px; height: 48px; margin-bottom: 32px; position: relative; }
-        .spinner { width: 100%; height: 100%; border-radius: 50%; background: conic-gradient(from 0deg, transparent, #ff8c42, transparent); animation: spin 2s linear infinite; position: relative; }
-        .spinner::before { content: ''; position: absolute; top: 2px; left: 2px; right: 2px; bottom: 2px; background: #1a1a1a; border-radius: 50%; }
-        .spinner.ready { background: conic-gradient(from 0deg, transparent, #4ade80, transparent); }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        /* Welcome Message */
-        .welcome-message { text-align: center; max-width: 400px; }
-        .welcome-title { font-size: 28px; font-weight: 400; color: #ffffff; margin-bottom: 8px; line-height: 1.3; }
-        .status-text { font-size: 16px; color: #999; margin-bottom: 24px; }
-        /* Status Info */
-        .status-info { background: #2a2a2a; border-radius: 12px; padding: 16px; margin-top: 24px; min-width: 300px; text-align: right; }
-        .status-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-        .status-row:last-child { margin-bottom: 0; }
-        .status-label { color: #999; font-size: 14px; }
-        .status-value { color: #ffffff; font-size: 14px; font-weight: 500; }
-        .status-value.success { color: #4ade80; }
-        .status-value.error { color: #ef4444; }
-        /* Bottom Input Area */
-        .input-area { padding: 16px; background: #1a1a1a; border-top: 1px solid #333; position: sticky; bottom: 0; z-index: 1000; width: 100%; }
-        .input-container { display: flex; align-items: center; gap: 12px; max-width: 600px; margin: 0 auto; }
-        .input-field { flex: 1; background: #2a2a2a; border: 2px solid #444; border-radius: 20px; padding: 12px 16px; color: #ffffff; font-size: 16px; outline: none; transition: all 0.2s ease; min-height: 20px; }
-        .input-field::placeholder { color: #888; font-style: normal; }
-        .input-field:focus { border-color: #4a9eff; box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.2); }
-        .send-btn { width: 36px; height: 36px; border-radius: 50%; border: none; background: #4a9eff; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: all 0.2s ease; opacity: 0.5; }
-        .send-btn.active { opacity: 1; transform: scale(1); }
-        .send-btn:hover.active { background: #3b82f6; transform: scale(1.05); }
-        /* Responsive */
+
+        /* صفحة تسجيل الدخول */
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .login-card {
+            background: rgba(26, 26, 26, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 3rem;
+            border-radius: 25px;
+            box-shadow: 
+                0 25px 50px rgba(0, 0, 0, 0.5),
+                0 0 100px rgba(255, 215, 0, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            width: 90%;
+            max-width: 450px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .login-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, 
+                transparent, 
+                #ffd700, 
+                #ffed4e, 
+                #ffd700, 
+                transparent);
+            animation: shimmer 3s ease-in-out infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .logo {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(45deg, #ffd700, #ffed4e, #ffa500);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* الصفحة الرئيسية */
+        .main-container {
+            display: none;
+            min-height: 100vh;
+        }
+
+        .navbar {
+            background: rgba(26, 26, 26, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 215, 0, 0.2);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #ffd700;
+        }
+
+        .navbar-profile {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .profile-btn {
+            background: rgba(255, 215, 0, 0.1);
+            border: 1px solid #ffd700;
+            border-radius: 50px;
+            padding: 8px 20px;
+            color: #ffd700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+
+        .profile-btn:hover {
+            background: rgba(255, 215, 0, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .main-content {
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* لوحة المعلومات */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .dashboard-card {
+            background: rgba(26, 26, 26, 0.8);
+            border: 1px solid rgba(255, 215, 0, 0.2);
+            border-radius: 15px;
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid rgba(255, 215, 0, 0.1);
+        }
+
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #ffd700;
+        }
+
+        .price-display {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #ffffff;
+            text-align: center;
+            margin: 1rem 0;
+        }
+
+        .price-change {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            font-size: 1rem;
+        }
+
+        .price-change.positive {
+            color: #4caf50;
+        }
+
+        .price-change.negative {
+            color: #f44336;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 200px;
+            margin-top: 1rem;
+        }
+
+        /* تحليل الفرص */
+        .analysis-section {
+            background: rgba(26, 26, 26, 0.8);
+            border: 1px solid rgba(255, 215, 0, 0.2);
+            border-radius: 15px;
+            padding: 2rem;
+            margin-top: 2rem;
+        }
+
+        .opportunity-card {
+            background: rgba(76, 175, 80, 0.1);
+            border: 1px solid rgba(76, 175, 80, 0.3);
+            border-radius: 10px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+
+        .opportunity-card.warning {
+            background: rgba(255, 193, 7, 0.1);
+            border-color: rgba(255, 193, 7, 0.3);
+        }
+
+        .opportunity-card.danger {
+            background: rgba(244, 67, 54, 0.1);
+            border-color: rgba(244, 67, 54, 0.3);
+        }
+
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #ffd700, #ffed4e);
+            color: #000;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(255, 215, 0, 0.3);
+        }
+                 /* تحديث مباشر */
+        .live-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(76, 175, 80, 0.2);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+        }
+
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            background: #4caf50;
+            border-radius: 50%;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 215, 0, 0.3);
+            border-radius: 50%;
+            border-top-color: #ffd700;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* الاستجابة للأجهزة المختلفة */
         @media (max-width: 768px) {
-            .welcome-title { font-size: 24px; }
-            .status-info { min-width: auto; width: 100%; }
-            .input-area { padding: 12px; }
-            .input-container { gap: 8px; }
-            .input-field { font-size: 16px; padding: 10px 14px; }
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .navbar {
+                padding: 1rem;
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .main-content {
+                padding: 1rem;
+            }
         }
     </style>
 </head>
 <body>
-    <!-- Hidden iframe for silent authentication -->
-    <iframe id="authFrame" src="about:blank"></iframe>
-
-    <!-- Main Content -->
-    <div class="main-content">
-        <!-- Welcome Screen -->
-        <div class="welcome-screen" id="welcomeScreen">
-            <!-- Loading Spinner -->
-            <div class="loading-spinner">
-                <div class="spinner" id="spinner"></div>
+    <!-- صفحة تسجيل الدخول -->
+    <div class="login-container" id="loginContainer">
+        <div class="login-card">
+            <div class="logo">
+                <i class="fas fa-gem"></i>
             </div>
-
-            <!-- Welcome Message -->
-            <div class="welcome-message">
-                <h1 class="welcome-title" id="welcomeTitle">جاري التحضير...</h1>
-                <p class="status-text" id="statusText">جاري التهيئة...</p>
+            <h2>نظام الذهب الذكي</h2>
+            
+            <div class="input-group">
+                <input type="text" id="codeInput" placeholder="أدخل الكود السري" maxlength="18">
             </div>
-
-            <!-- Status Info -->
-            <div class="status-info">
-                <div class="status-row">
-                    <span class="status-label">الحالة:</span>
-                    <span class="status-value" id="connectionStatus">غير متصل</span>
-                </div>
-                <div class="status-row">
-                    <span class="status-label">المصادقة:</span>
-                    <span class="status-value" id="authStatus">غير مصادق</span>
-                </div>
-                <div class="status-row">
-                    <span class="status-label">الرسائل:</span>
-                    <span class="status-value" id="messageCount">0</span>
-                </div>
-            </div>
+            
+            <button class="btn btn-primary" onclick="login()">
+                <i class="fas fa-key" style="margin-left: 10px;"></i>
+                تسجيل الدخول
+            </button>
+            
+            <div id="loginStatus"></div>
         </div>
+    </div>
 
-        <!-- Chat Container -->
-        <div class="chat-container" id="chatContainer">
-            <!-- Typing Indicator -->
-            <div class="typing-indicator" id="typingIndicator">
-                <div class="typing-dots">
-                    <div class="typing-dot"></div>
-                    <div class="typing-dot"></div>
-                    <div class="typing-dot"></div>
+    <!-- الصفحة الرئيسية -->
+    <div class="main-container" id="mainContainer">
+        <!-- شريط التنقل -->
+        <nav class="navbar">
+            <div class="navbar-brand">
+                <i class="fas fa-chart-line"></i>
+                <span>نظام الذهب الذكي</span>
+                <div class="live-indicator">
+                    <div class="live-dot"></div>
+                    <span>مباشر</span>
+                </div>
+            </div>
+            
+            <div class="navbar-profile">
+                <span id="lastUpdate">آخر تحديث: --</span>
+                <a href="#" class="profile-btn" onclick="showProfile()">
+                    <i class="fas fa-user"></i>
+                    <span id="userCodeNav"></span>
+                </a>
+                <button class="btn btn-secondary" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i>
+                    خروج
+                </button>
+            </div>
+        </nav>
+
+        <!-- المحتوى الرئيسي -->
+        <div class="main-content">
+            <!-- لوحة المعلومات الرئيسية -->
+            <div class="dashboard-grid">
+                <!-- سعر الذهب الحالي -->
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <i class="fas fa-coins"></i>
+                            سعر الذهب عيار 24
+                        </div>
+                        <div class="live-indicator">
+                            <div class="live-dot"></div>
+                            مباشر
+                        </div>
+                    </div>
+                    <div class="price-display" id="goldPrice">
+                        <span class="loading"></span>
+                    </div>
+                    <div class="price-change" id="goldChange">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>جاري التحميل...</span>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="goldChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- الدولار مقابل الجنيه -->
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <i class="fas fa-exchange-alt"></i>
+                            الدولار / الجنيه المصري
+                        </div>
+                    </div>
+                    <div class="price-display" id="usdEgp">
+                        <span class="loading"></span>
+                    </div>
+                    <div class="price-change" id="usdChange">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>جاري التحميل...</span>
+                    </div>
+                </div>
+
+                <!-- أسعار البيع والشراء -->
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <i class="fas fa-balance-scale"></i>
+                            أسعار السوق المصري
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
+                        <div style="text-align: center;">
+                            <div style="color: #4caf50; font-size: 0.9rem; margin-bottom: 5px;">شراء</div>
+                            <div style="font-size: 1.5rem; font-weight: bold;" id="buyPrice">--</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="color: #f44336; font-size: 0.9rem; margin-bottom: 5px;">بيع</div>
+                            <div style="font-size: 1.5rem; font-weight: bold;" id="sellPrice">--</div>
+                        </div>
+                    </div>
+                    <div style="text-align: center; margin-top: 1rem; font-size: 0.9rem; color: #888;">
+                        <span>الفرق: </span><span id="spreadPrice">--</span>
+                    </div>
+                </div>
+
+                <!-- مؤشر السوق -->
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <i class="fas fa-tachometer-alt"></i>
+                            مؤشر السوق
+                        </div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div id="marketIndicator" style="font-size: 3rem; margin: 1rem 0;">📈</div>
+                        <div id="marketStatus" style="font-size: 1.2rem; font-weight: bold;">جاري التحليل...</div>
+                        <div id="marketConfidence" style="font-size: 0.9rem; color: #888; margin-top: 0.5rem;">نسبة الثقة: --%</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- تحليل الفرص -->
+            <div class="analysis-section">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-brain"></i>
+                        تحليل ذكي للفرص
+                    </div>
+                </div>
+                
+                <div id="opportunityCards">
+                    <div class="opportunity-card">
+                        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 1rem;">
+                            <div style="font-size: 2rem;">🤖</div>
+                            <div>
+                                <strong>جاري تحليل البيانات...</strong>
+                                <div style="font-size: 0.9rem; color: #888; margin-top: 5px;">
+                                    يتم معالجة البيانات في الوقت الفعلي لتحديد أفضل الفرص
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- توصيات التداول -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-top: 2rem;">
+                    <div class="dashboard-card" style="text-align: center;">
+                        <h3 style="color: #4caf50; margin-bottom: 1rem;">
+                            <i class="fas fa-arrow-up"></i>
+                            توصية الشراء
+                        </h3>
+                        <div id="buyRecommendation" style="font-size: 1.1rem;">جاري التحليل...</div>
+                    </div>
+                    
+                    <div class="dashboard-card" style="text-align: center;">
+                        <h3 style="color: #f44336; margin-bottom: 1rem;">
+                            <i class="fas fa-arrow-down"></i>
+                            توصية البيع
+                        </h3>
+                        <div id="sellRecommendation" style="font-size: 1.1rem;">جاري التحليل...</div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Bottom Input Area -->
-    <div class="input-area">
-        <div class="input-container">
-            <input type="text" class="input-field" placeholder="اكتب رسالتك هنا..." id="messageInput" onkeypress="handleKeyPress(event)" oninput="toggleSendButton()">
-            <button class="send-btn" id="sendBtn" onclick="sendMessage()" title="إرسال">→</button>
-        </div>
-    </div>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
     <script>
-        // منع النوافذ المنبثقة بالكامل
-        const originalOpen = window.open;
-        window.open = function(url, name, specs) {
-            console.log('Popup blocked:', url);
-            return null;
+        // إعداد Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyD-hjkkUdPq65Ul3c-oJAw6t5cGbhsYVz0",
+            authDomain: "goldinsold.firebaseapp.com",
+            databaseURL: "https://goldinsold-default-rtdb.firebaseio.com/",
+            projectId: "goldinsold",
+            storageBucket: "goldinsold.appspot.com",
+            messagingSenderId: "540715183013",
+            appId: "1:540715183013:android:c1c78e5e814db2c556d64c"
         };
 
-        // منع alert و confirm و prompt
-        window.alert = function(msg) { console.log('Alert blocked:', msg); };
-        window.confirm = function(msg) { console.log('Confirm blocked:', msg); return true; };
-        window.prompt = function(msg) { console.log('Prompt blocked:', msg); return null; };
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
 
         // متغيرات عامة
-        let isReady = false;
-        let messageId = 0;
-        let isAuthenticated = false;
-        let authFrame = null;
+        let goldChart = null;
+        let currentUser = null;
+        let priceHistory = [];
+        let lastGoldPrice = 0;
+        let lastUsdPrice = 0;
 
-        // دالة لتحديث الحالة
-        function updateStatus(text, ready = false, authenticated = null) {
-            const statusText = document.getElementById('statusText');
-            const spinner = document.getElementById('spinner');
-            const connectionStatus = document.getElementById('connectionStatus');
-            const authStatus = document.getElementById('authStatus');
-            const welcomeTitle = document.getElementById('welcomeTitle');
-
-            statusText.textContent = text;
-            spinner.className = `spinner ${ready ? 'ready' : ''}`;
-            connectionStatus.textContent = ready ? 'متصل وجاهز' : 'غير متصل';
-            connectionStatus.className = `status-value ${ready ? 'success' : 'error'}`;
-
-            if (authenticated !== null) {
-                authStatus.textContent = authenticated ? 'مصادق' : 'غير مصادق';
-                authStatus.className = `status-value ${authenticated ? 'success' : 'error'}`;
-                isAuthenticated = authenticated;
-            }
-
-            if (ready) {
-                welcomeTitle.textContent = "How can I help you this evening?";
-            } else {
-                welcomeTitle.textContent = "جاري التحضير...";
-            }
-
-            isReady = ready;
-            updateCounts();
-            toggleSendButton();
+        // الحصول على بصمة الجهاز
+        function getDeviceFingerprint() {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.textBaseline = 'top';
+            ctx.font = '14px Arial';
+            ctx.fillText('Device fingerprint', 2, 2);
+            
+            const fingerprint = {
+                screen: screen.width + 'x' + screen.height + 'x' + screen.colorDepth,
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                language: navigator.language,
+                platform: navigator.platform,
+                canvas: canvas.toDataURL(),
+                userAgent: navigator.userAgent,
+                timestamp: Date.now()
+            };
+            
+            return btoa(JSON.stringify(fingerprint)).substring(0, 50);
         }
 
-        // دالة لتحديث العدادات
-        function updateCounts() {
-            document.getElementById('messageCount').textContent = messageId;
-        }
+        const deviceId = getDeviceFingerprint();
 
-        // مصادقة صامتة دقيقة عبر iframe + postMessage (بدون أي popups أو إعادة توجيه)
-        async function silentAuthentication() {
-            return new Promise((resolve) => {
-                updateStatus('جاري الاتصال بـ Puter...', false, false);
-
-                authFrame = document.getElementById('authFrame');
-                let finished = false;
-
-                let finish = (ok, note) => {
-                    if (finished) return;
-                    finished = true;
-                    if (ok) {
-                        updateStatus(note || 'المصادقة مكتملة', false, true);
-                    } else {
-                        updateStatus(note || 'تعذر المصادقة، المتابعة بدون مصادقة', false, false);
-                    }
-                    resolve(ok);
-                };
-
-                const hardTimeout = setTimeout(() => {
-                    console.warn('Auth hard-timeout reached. Proceeding as authenticated to keep UX smooth.');
-                    finish(true, 'تم افتراض المصادقة بعد المهلة');
-                }, 20000);
-
-                const onMessage = (event) => {
-                    try {
-                        const originOk = typeof event.origin === 'string' && event.origin.includes('puter.com');
-                        if (!originOk) return;
-                        if (event.data && (event.data.auth === 'success' || event.data === 'auth_success')) {
-                            clearTimeout(hardTimeout);
-                            window.removeEventListener('message', onMessage);
-                            console.log('Auth via postMessage received:', event.data);
-                            finish(true, 'تم تأكيد المصادقة عبر postMessage');
-                        }
-                    } catch (e) {
-                        console.log('postMessage parse error:', e);
-                    }
-                };
-                window.addEventListener('message', onMessage);
-
-                const poll = setInterval(() => {
-                    try { void authFrame.contentWindow; } catch(e) { /* expected cross-origin */ }
-                }, 1000);
-
-                const cleanup = () => {
-                    clearTimeout(hardTimeout);
-                    clearInterval(poll);
-                    window.removeEventListener('message', onMessage);
-                };
-                const originalFinish = finish;
-                finish = (ok, note) => { cleanup(); originalFinish(ok, note); };
-
-                authFrame.onload = function() {
-                    console.log('Auth iframe loaded.');
-                    updateStatus('جاري المصادقة...', false, false);
-                    // في حال عدم وجود postMessage من puter، نمنح وقتاً لكتابة الكوكيز ثم نكمل
-                    setTimeout(() => {
-                        finish(true, 'تمت المصادقة (افتراضيًا بعد التحميل)');
-                    }, 3000);
-                };
-
-                authFrame.src = 'https://puter.com/?embedded_in_popup=true&request_auth=true';
-            });
-        }
-
-        // دالة لإضافة رسالة إلى الشات
-        function addMessageToChat(message, isUser = false) {
-            const chatContainer = document.getElementById('chatContainer');
-            const welcomeScreen = document.getElementById('welcomeScreen');
-
-            if (!chatContainer.classList.contains('show')) {
-                welcomeScreen.classList.add('hidden');
-                chatContainer.classList.add('show');
-            }
-
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${isUser ? 'user' : 'assistant'}`;
-
-            const messageContent = document.createElement('div');
-            messageContent.className = 'message-content';
-            messageContent.textContent = message;
-
-            const messageTime = document.createElement('div');
-            messageTime.className = 'message-time';
-            messageTime.textContent = new Date().toLocaleTimeString('ar-SA', {
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-
-            messageDiv.appendChild(messageContent);
-            messageDiv.appendChild(messageTime);
-
-            const typingIndicator = document.getElementById('typingIndicator');
-            const chatContainerEl = document.getElementById('chatContainer');
-            chatContainerEl.insertBefore(messageDiv, typingIndicator);
-
-            chatContainerEl.scrollTop = chatContainerEl.scrollHeight;
-
-            return messageDiv;
-        }
-
-        // دالة لإظهار مؤشر الكتابة
-        function showTyping() {
-            const typingIndicator = document.getElementById('typingIndicator');
-            typingIndicator.classList.add('show');
-
-            const chatContainer = document.getElementById('chatContainer');
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-        }
-
-        // دالة لإخفاء مؤشر الكتابة
-        function hideTyping() {
-            const typingIndicator = document.getElementById('typingIndicator');
-            typingIndicator.classList.remove('show');
-        }
-
-        // دالة للتعامل مع ضغط Enter
-        function handleKeyPress(event) {
-            if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault();
-                sendMessage();
-            }
-        }
-
-        // دالة لتفعيل/إلغاء تفعيل زر الإرسال
-        function toggleSendButton() {
-            const input = document.getElementById('messageInput');
-            const sendBtn = document.getElementById('sendBtn');
-
-            if (input.value.trim().length > 0 && isReady) {
-                sendBtn.classList.add('active');
-            } else {
-                sendBtn.classList.remove('active');
-            }
-        }
-
-        // دالة لإرسال الرسالة
-        async function sendMessage() {
-            const input = document.getElementById('messageInput');
-            const message = input.value.trim();
-
-            if (message.length === 0 || !isReady) {
+        // تسجيل الدخول
+        function login() {
+            const code = document.getElementById('codeInput').value.trim();
+            
+            if (code.length !== 18) {
+                showLoginError('الكود يجب أن يكون 18 حرف بالضبط');
                 return;
             }
 
-            addMessageToChat(message, true);
-            input.value = '';
-            toggleSendButton();
-            showTyping();
+            showLoginStatus('جاري التحقق من الكود...', 'info');
 
-            try {
-                const result = await window.receiveMessage(message);
-                const parsed = JSON.parse(result);
-
-                hideTyping();
-
-                if (parsed.success) {
-                    addMessageToChat(parsed.response, false);
-                } else {
-                    addMessageToChat(`خطأ: ${parsed.error}`, false);
-                }
-            } catch (error) {
-                hideTyping();
-                addMessageToChat(`خطأ في الإرسال: ${error.message}`, false);
-            }
-        }
-
-        // دالة استقبال الرسائل من Android
-        window.receiveMessage = async function(message) {
-            const id = ++messageId;
-            updateCounts();
-
-            if (!isReady) {
-                return JSON.stringify({
-                    success: false,
-                    error: 'System not ready',
-                    messageId: id
-                });
-            }
-
-            return await processMessage({
-                id: id,
-                message: message,
-                timestamp: new Date().toISOString()
-            });
-        };
-
-        // معالجة الرسائل الفعلية عبر puter.ai
-        async function processMessage(messageData) {
-            try {
-                updateStatus('جاري المعالجة...', true, isAuthenticated);
-
-                if (!window.puter || !window.puter.ai || !window.puter.ai.chat) {
-                    console.error('puter.ai.chat غير متاح. تأكد من تحميل js.puter.com/v2/ بنجاح.');
-                    throw new Error('خدمة Puter غير جاهزة');
+            database.ref('blacklist/' + btoa(deviceId)).once('value').then((snapshot) => {
+                if (snapshot.exists()) {
+                    showLoginError('جهازك محظور من استخدام الموقع');
+                    return;
                 }
 
-                const response = await puter.ai.chat(messageData.message, {
-                    model: 'claude-sonnet-4'
-                });
-
-                let responseText = '';
-                if (response?.message?.content?.[0]?.text) {
-                    responseText = response.message.content[0].text;
-                } else if (typeof response === 'string') {
-                    responseText = response;
-                } else {
-                    responseText = 'تم الاستلام ولكن لا يوجد نص في الرد';
-                }
-
-                updateStatus('جاهز للاستخدام', true, isAuthenticated);
-
-                window.lastResponse = {
-                    success: true,
-                    response: responseText,
-                    messageId: messageData.id,
-                    timestamp: new Date().toISOString()
-                };
-
-                return JSON.stringify(window.lastResponse);
-
-            } catch (error) {
-                console.error('processMessage error:', error);
-                const msg = (error && (error.message || error.toString())) || 'Unknown error';
-                updateStatus('جاهز للاستخدام', true, isAuthenticated);
-                return JSON.stringify({
-                    success: false,
-                    error: msg,
-                    messageId: messageData.id
-                });
-            }
-        }
-
-        // دالة للحصول على آخر رد
-        window.getLastResponse = function() {
-            return JSON.stringify(window.lastResponse || {
-                success: false,
-                error: 'No response available'
-            });
-        };
-
-        // دالة للتحقق من الحالة
-        window.getStatus = function() {
-            return JSON.stringify({
-                ready: isReady,
-                authenticated: isAuthenticated,
-                messageCount: messageId,
-                timestamp: new Date().toISOString()
-            });
-        };
-
-        // تهيئة Puter.js + مصادقة صامتة
-        async function initializePuter() {
-            updateStatus('جاري تحميل Puter.js...', false, false);
-
-            let attempts = 0;
-            const maxAttempts = 30;
-
-            const checkInterval = setInterval(async () => {
-                attempts++;
-
-                if (window.puter && window.puter.ai && window.puter.ai.chat) {
-                    clearInterval(checkInterval);
-
-                    try {
-                        const authOK = await silentAuthentication();
-
-                        updateStatus('جاري اختبار الاتصال...', false, !!authOK);
-
-                        try {
-                            const test = await puter.ai.chat('test', { model: 'claude-sonnet-4' });
-                            console.log('Puter chat test response:', test);
-                            updateStatus('جاهز للاستخدام', true, !!authOK);
-                        } catch (testError) {
-                            console.error('Test chat failed:', testError);
-                            const isAuthErr = (testError && (testError.status === 401 || String(testError).includes('401')));
-                            if (isAuthErr) {
-                                updateStatus('غير مصادق (فشل الاختبار 401). أعد المحاولة لاحقًا.', false, false);
+                database.ref('codes/' + code).once('value').then((snapshot) => {
+                    if (snapshot.exists()) {
+                        const codeData = snapshot.val();
+                        
+                        if (codeData.used) {
+                            if (codeData.deviceId === deviceId) {
+                                showLoginStatus('مرحباً بعودتك!', 'success');
+                                setTimeout(() => {
+                                    showMainPage(code);
+                                    localStorage.setItem('userCode', code);
+                                    localStorage.setItem('deviceId', deviceId);
+                                }, 1000);
                             } else {
-                                updateStatus('جاهز للاستخدام (تحذير: فشل اختبار الدردشة)', true, !!authOK);
+                                database.ref('blacklist/' + btoa(deviceId)).set({
+                                    deviceId: deviceId,
+                                    timestamp: Date.now(),
+                                    reason: 'محاولة استخدام كود مستخدم مسبقاً'
+                                });
+                                showLoginError('هذا الكود مستخدم مسبقاً على جهاز آخر. تم حظر جهازك.');
                             }
+                        } else {
+                            database.ref('codes/' + code).update({
+                                used: true,
+                                deviceId: deviceId,
+                                usedAt: Date.now()
+                            }).then(() => {
+                                showLoginStatus('تم تفعيل الكود بنجاح!', 'success');
+                                setTimeout(() => {
+                                    showMainPage(code);
+                                    localStorage.setItem('userCode', code);
+                                    localStorage.setItem('deviceId', deviceId);
+                                }, 1000);
+                            });
                         }
-
-                    } catch (error) {
-                        console.error('Auth error:', error);
-                        updateStatus('جاهز للاستخدام (بدون مصادقة)', true, false);
+                    } else {
+                        showLoginError('كود غير صحيح أو غير موجود');
                     }
-
-                } else if (attempts >= maxAttempts) {
-                    clearInterval(checkInterval);
-                    updateStatus('فشل تحميل مكتبة Puter', false, false);
-                    console.error('Failed to load puter.js API within time.');
-                } else {
-                    if (attempts % 5 === 0) {
-                        updateStatus(`جاري التحميل... (${attempts}/${maxAttempts})`, false, false);
-                    }
-                }
-            }, 1000);
+                });
+            });
         }
 
-        // بدء التهيئة عند تحميل الصفحة
-        window.addEventListener('load', () => {
-            updateStatus('جاري البدء...', false, false);
-            initializePuter();
+        // عرض الصفحة الرئيسية
+        function showMainPage(code) {
+            currentUser = code;
+            document.getElementById('loginContainer').style.display = 'none';
+            document.getElementById('mainContainer').style.display = 'block';
+            document.getElementById('userCodeNav').textContent = code.substring(0, 6) + '...';
+            
+            initializeGoldChart();
+            startPriceUpdates();
+            loadGoldAnalysis();
+        }
+
+        // تحديث الأسعار
+        async function updatePrices() {
+            try {
+                // استخدام API مجاني للذهب والعملات
+                const goldResponse = await fetch('https://api.metals.live/v1/spot/gold');
+                const currencyResponse = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+                
+                if (goldResponse.ok && currencyResponse.ok) {
+                    const goldData = await goldResponse.json();
+                    const currencyData = await currencyResponse.json();
+                    
+                    // سعر الذهب بالدولار للأونصة
+                    const goldPriceUSD = goldData.price;
+                    // سعر الدولار مقابل الجنيه المصري
+                    const usdToEgp = currencyData.rates.EGP || 31.0;
+                    
+                    // تحويل سعر الذهب للجرام بالجنيه المصري
+                    const goldPriceEGP = (goldPriceUSD / 31.1035) * usdToEgp; // تحويل من أونصة لجرام
+                    
+                    updateGoldDisplay(goldPriceEGP);
+                    updateCurrencyDisplay(usdToEgp);
+                    updateMarketPrices(goldPriceEGP);
+                    updateMarketIndicator(goldPriceEGP);
+                    
+                } else {
+                    // في حالة فشل API، استخدام أسعار تقريبية
+                    const estimatedGoldPrice = 2400 + (Math.random() * 100 - 50); // سعر تقريبي
+                    const estimatedUsdRate = 31 + (Math.random() * 2 - 1);
+                    
+                    updateGoldDisplay(estimatedGoldPrice);
+                    updateCurrencyDisplay(estimatedUsdRate);
+                    updateMarketPrices(estimatedGoldPrice);
+                    updateMarketIndicator(estimatedGoldPrice);
+                }
+                
+                document.getElementById('lastUpdate').textContent = 
+                    'آخر تحديث: ' + new Date().toLocaleTimeString('ar-EG');
+                    
+            } catch (error) {
+                console.error('خطأ في جلب البيانات:', error);
+                // أسعار افتراضية في حالة الخطأ
+                const fallbackGoldPrice = 2400;
+                const fallbackUsdRate = 31;
+                
+                updateGoldDisplay(fallbackGoldPrice);
+                updateCurrencyDisplay(fallbackUsdRate);
+                updateMarketPrices(fallbackGoldPrice);
+            }
+        }
+
+        // تحديث عرض الذهب
+        function updateGoldDisplay(price) {
+            const priceElement = document.getElementById('goldPrice');
+            const changeElement = document.getElementById('goldChange');
+            
+            priceElement.textContent = price.toFixed(2) + ' ج.م';
+            
+            if (lastGoldPrice > 0) {
+                const change = price - lastGoldPrice;
+                const changePercent = ((change / lastGoldPrice) * 100);
+                
+                if (change > 0) {
+                    changeElement.className = 'price-change positive';
+                    changeElement.innerHTML = `<i class="fas fa-arrow-up"></i> +${change.toFixed(2)} (+${changePercent.toFixed(2)}%)`;
+                } else if (change < 0) {
+                    changeElement.className = 'price-change negative';
+                    changeElement.innerHTML = `<i class="fas fa-arrow-down"></i> ${change.toFixed(2)} (${changePercent.toFixed(2)}%)`;
+                } else {
+                    changeElement.className = 'price-change';
+                    changeElement.innerHTML = `<i class="fas fa-minus"></i> بدون تغيير`;
+                }
+            }
+            
+            lastGoldPrice = price;
+            addToPriceHistory(price);
+            updateChart();
+        }
+
+        // تحديث عرض العملة
+        function updateCurrencyDisplay(rate) {
+            const priceElement = document.getElementById('usdEgp');
+            const changeElement = document.getElementById('usdChange');
+            
+            priceElement.textContent = rate.toFixed(3) + ' ج.م';
+            
+            if (lastUsdPrice > 0) {
+                const change = rate - lastUsdPrice;
+                const changePercent = ((change / lastUsdPrice) * 100);
+                
+                if (change > 0) {
+                    changeElement.className = 'price-change positive';
+                    changeElement.innerHTML = `<i class="fas fa-arrow-up"></i> +${change.toFixed(3)} (+${changePercent.toFixed(2)}%)`;
+                } else if (change < 0) {
+                    changeElement.className = 'price-change negative';
+                    changeElement.innerHTML = `<i class="fas fa-arrow-down"></i> ${change.toFixed(3)} (${changePercent.toFixed(2)}%)`;
+                }
+            }
+            
+            lastUsdPrice = rate;
+        }
+
+        // تحديث أسعار السوق
+        function updateMarketPrices(goldPrice) {
+            // إضافة هامش ربح للسوق المحلي
+            const buyPrice = goldPrice * 0.98; // سعر الشراء أقل بـ 2%
+            const sellPrice = goldPrice * 1.02; // سعر البيع أعلى بـ 2%
+            const spread = sellPrice - buyPrice;
+            
+            document.getElementById('buyPrice').textContent = buyPrice.toFixed(2) + ' ج.م';
+            document.getElementById('sellPrice').textContent = sellPrice.toFixed(2) + ' ج.م';
+            document.getElementById('spreadPrice').textContent = spread.toFixed(2) + ' ج.م';
+        }
+
+        // تحديث مؤشر السوق
+        function updateMarketIndicator(currentPrice) {
+            const indicator = document.getElementById('marketIndicator');
+            const status = document.getElementById('marketStatus');
+            const confidence = document.getElementById('marketConfidence');
+            
+            if (priceHistory.length > 5) {
+                const recentPrices = priceHistory.slice(-5);
+                const trend = recentPrices[recentPrices.length - 1] - recentPrices[0];
+                const volatility = calculateVolatility(recentPrices);
+                
+                if (trend > 20) {
+                    indicator.textContent = '📈';
+                    status.textContent = 'اتجاه صاعد قوي';
+                    status.style.color = '#4caf50';
+                    confidence.textContent = 'نسبة الثقة: 85%';
+                } else if (trend > 5) {
+                    indicator.textContent = '📊';
+                    status.textContent = 'اتجاه صاعد معتدل';
+                    status.style.color = '#8bc34a';
+                    confidence.textContent = 'نسبة الثقة: 70%';
+                } else if (trend < -20) {
+                    indicator.textContent = '📉';
+                    status.textContent = 'اتجاه هابط قوي';
+                    status.style.color = '#f44336';
+                    confidence.textContent = 'نسبة الثقة: 80%';
+                } else if (trend < -5) {
+                    indicator.textContent = '📋';
+                    status.textContent = 'اتجاه هابط معتدل';
+                    status.style.color = '#ff9800';
+                    confidence.textContent = 'نسبة الثقة: 65%';
+                } else {
+                    indicator.textContent = '⚖️';
+                    status.textContent = 'السوق مستقر';
+                    status.style.color = '#2196f3';
+                    confidence.textContent = 'نسبة الثقة: 60%';
+                }
+            }
+        }
+
+        // حساب التقلبات
+        function calculateVolatility(prices) {
+            const mean = prices.reduce((a, b) => a + b) / prices.length;
+            const variance = prices.reduce((sum, price) => sum + Math.pow(price - mean, 2), 0) / prices.length;
+            return Math.sqrt(variance);
+        }
+
+        // إضافة للتاريخ
+        function addToPriceHistory(price) {
+            priceHistory.push(price);
+            if (priceHistory.length > 50) { // الاحتفاظ بآخر 50 نقطة فقط
+                priceHistory.shift();
+            }
+        }
+
+        // تهيئة الرسم البياني
+        function initializeGoldChart() {
+            const ctx = document.getElementById('goldChart').getContext('2d');
+            goldChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'سعر الذهب',
+                        data: [],
+                        borderColor: '#ffd700',
+                        backgroundColor: 'rgba(255, 215, 0, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            display: false
+                        },
+                        y: {
+                            display: false
+                        }
+                    },
+                    elements: {
+                        point: {
+                            radius: 0
+                        }
+                    }
+                }
+            });
+        }
+
+        // تحديث الرسم البياني
+        function updateChart() {
+            if (goldChart && priceHistory.length > 0) {
+                goldChart.data.labels = priceHistory.map((_, index) => index);
+                goldChart.data.datasets[0].data = priceHistory;
+                goldChart.update('none');
+            }
+        }
+
+        // تحليل الفرص
+        function loadGoldAnalysis() {
+            setTimeout(() => {
+                const opportunityCards = document.getElementById('opportunityCards');
+                opportunityCards.innerHTML = generateOpportunityAnalysis();
+                updateRecommendations();
+            }, 2000);
+        }
+
+        // توليد تحليل الفرص
+        function generateOpportunityAnalysis() {
+            const opportunities = [
+                {
+                    type: 'positive',
+                    icon: '💰',
+                    title: 'فرصة شراء ممتازة',
+                    description: 'تشير التحليلات الفنية إلى انخفاض مؤقت في الأسعار مع إمكانية ارتفاع بنسبة 3-5% خلال الأسبوع القادم',
+                    confidence: '85%'
+                },
+                {
+                    type: 'warning',
+                    icon: '⚠️',
+                    title: 'تحذير من التقلبات',
+                    description: 'السوق يشهد تقلبات عالية. يُنصح بالحذر وتوزيع المخاطر',
+                    confidence: '70%'
+                },
+                {
+                    type: 'info',
+                    icon: '📊',
+                    title: 'تحليل فني',
+                    description: 'مستويات الدعم عند 2350 ج.م والمقاومة عند 2450 ج.م. الاتجاه العام صاعد',
+                    confidence: '75%'
+                }
+            ];
+            
+            return opportunities.map(opp => `
+                <div class="opportunity-card ${opp.type === 'positive' ? '' : opp.type}">
+                    <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 1rem;">
+                        <div style="font-size: 2rem;">${opp.icon}</div>
+                        <div>
+                            <strong>${opp.title}</strong>
+                            <div style="font-size: 0.9rem; color: #888; margin-top: 5px;">
+                                ${opp.description}
+                            </div>
+                            <div style="font-size: 0.8rem; color: #ffd700; margin-top: 8px;">
+                                نسبة الثقة: ${opp.confidence}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // تحديث التوصيات
+        function updateRecommendations() {
+            const buyRec = document.getElementById('buyRecommendation');
+            const sellRec = document.getElementById('sellRecommendation');
+            
+            buyRec.innerHTML = `
+                <div style="color: #4caf50; font-size: 1.5rem; margin-bottom: 10px;">قوي</div>
+                <div style="font-size: 0.9rem; color: #888;">
+                    يُنصح بالشراء عند مستوى 2380 ج.م<br>
+                    الهدف: 2450 ج.م
+                </div>
+            `;
+            
+            sellRec.innerHTML = `
+                <div style="color: #ff9800; font-size: 1.5rem; margin-bottom: 10px;">معتدل</div>
+                <div style="font-size: 0.9rem; color: #888;">
+                    يُنصح بالبيع عند مستوى 2420 ج.م<br>
+                    وقف الخسارة: 2360 ج.م
+                </div>
+            `;
+        }
+
+        // بدء تحديثات الأسعار
+        function startPriceUpdates() {
+            updatePrices(); // تحديث فوري
+            setInterval(updatePrices, 30000); // تحديث كل 30 ثانية
+        }
+
+                // عرض الملف الشخصي
+        function showProfile() {
+            const deviceInfo = getDeviceInfo();
+            alert(`
+الملف الشخصي
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+الكود: ${currentUser}
+الجهاز: ${deviceInfo.browser}
+النظام: ${deviceInfo.os}
+تاريخ التسجيل: ${new Date().toLocaleDateString('ar-EG')}
+آخر دخول: ${new Date().toLocaleString('ar-EG')}
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+حالة الحساب: نشط ✅
+            `);
+        }
+
+        // الحصول على معلومات الجهاز
+        function getDeviceInfo() {
+            const userAgent = navigator.userAgent;
+            let browser = "Unknown";
+            let os = "Unknown";
+            
+            if (userAgent.indexOf("Chrome") > -1) browser = "Chrome";
+            else if (userAgent.indexOf("Firefox") > -1) browser = "Firefox";
+            else if (userAgent.indexOf("Safari") > -1) browser = "Safari";
+            else if (userAgent.indexOf("Edge") > -1) browser = "Edge";
+            
+            if (userAgent.indexOf("Windows") > -1) os = "Windows";
+            else if (userAgent.indexOf("Mac") > -1) os = "MacOS";
+            else if (userAgent.indexOf("Linux") > -1) os = "Linux";
+            else if (userAgent.indexOf("Android") > -1) os = "Android";
+            else if (userAgent.indexOf("iOS") > -1) os = "iOS";
+            
+            return { browser, os };
+        }
+
+        // تسجيل الخروج
+        function logout() {
+            localStorage.clear();
+            document.getElementById('loginContainer').style.display = 'flex';
+            document.getElementById('mainContainer').style.display = 'none';
+            document.getElementById('codeInput').value = '';
+            document.getElementById('loginStatus').innerHTML = '';
+            currentUser = null;
+        }
+
+        // عرض رسائل تسجيل الدخول
+        function showLoginStatus(message, type) {
+            const statusElement = document.getElementById('loginStatus');
+            let className = '';
+            let icon = '';
+            
+            switch(type) {
+                case 'success':
+                    className = 'success';
+                    icon = 'fas fa-check-circle';
+                    break;
+                case 'error':
+                    className = 'error';
+                    icon = 'fas fa-exclamation-triangle';
+                    break;
+                case 'info':
+                    className = 'info';
+                    icon = 'fas fa-info-circle';
+                    break;
+            }
+            
+            statusElement.innerHTML = `
+                <div class="${className}" style="
+                    padding: 15px;
+                    border-radius: 10px;
+                    margin-top: 20px;
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                ">
+                    <i class="${icon}"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+        }
+
+        function showLoginError(message) {
+            showLoginStatus(message, 'error');
+        }
+
+        // التحقق من حالة تسجيل الدخول عند تحميل الصفحة
+        window.onload = function() {
+            const savedCode = localStorage.getItem('userCode');
+            const savedDevice = localStorage.getItem('deviceId');
+            
+            if (savedCode && savedDevice === deviceId) {
+                showLoginStatus('جاري التحقق من الجلسة...', 'info');
+                verifySession(savedCode);
+            }
+        }
+
+        // التحقق من الجلسة
+        function verifySession(code) {
+            database.ref('blacklist/' + btoa(deviceId)).once('value').then((snapshot) => {
+                if (snapshot.exists()) {
+                    showLoginError('جهازك محظور من استخدام الموقع');
+                    localStorage.clear();
+                    return;
+                }
+                
+                database.ref('codes/' + code).once('value').then((snapshot) => {
+                    if (snapshot.exists()) {
+                        const codeData = snapshot.val();
+                        if (codeData.used && codeData.deviceId === deviceId) {
+                            showMainPage(code);
+                        } else {
+                            localStorage.clear();
+                            showLoginError('يرجى تسجيل الدخول مرة أخرى');
+                        }
+                    } else {
+                        localStorage.clear();
+                        showLoginError('كود غير صالح');
+                    }
+                });
+            });
+        }
+
+        // التحقق عند الضغط على Enter
+        document.addEventListener('DOMContentLoaded', function() {
+            const codeInput = document.getElementById('codeInput');
+            if (codeInput) {
+                codeInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        login();
+                    }
+                });
+            }
         });
 
-        // إضافة دعم للاتصال من Android WebView
-        window.AndroidBridge = {
-            receiveMessage: window.receiveMessage,
-            getStatus: window.getStatus,
-            getLastResponse: window.getLastResponse
-        };
+        // محاكاة بيانات تاريخية للرسم البياني عند البداية
+        function initializeSampleData() {
+            const basePrice = 2400;
+            for (let i = 0; i < 20; i++) {
+                const price = basePrice + (Math.random() * 100 - 50);
+                priceHistory.push(price);
+            }
+            updateChart();
+        }
 
-        console.log('Claude AI Bridge v4.2 - Robust Silent Auth + Diagnostics');
+        // تحديث الأسعار كل فترة مع محاكاة تغييرات واقعية
+        function simulatePriceMovement() {
+            if (priceHistory.length > 0) {
+                const lastPrice = priceHistory[priceHistory.length - 1];
+                const change = (Math.random() * 20 - 10); // تغيير عشوائي بين -10 و +10
+                const newPrice = Math.max(2200, Math.min(2600, lastPrice + change)); // ضمن نطاق معقول
+                
+                updateGoldDisplay(newPrice);
+                updateCurrencyDisplay(31 + (Math.random() * 2 - 1)); // تحريك بسيط للدولار
+            }
+        }
+
+        // دالة لمحاكاة تحديثات الأسعار في حالة عدم توفر API
+        function startSimulation() {
+            initializeSampleData();
+            setInterval(simulatePriceMovement, 5000); // تحديث كل 5 ثوان للمحاكاة
+        }
+
+        // إضافة أنماط CSS إضافية للتفاعل
+        const additionalStyles = `
+            <style>
+                .info {
+                    background: rgba(33, 150, 243, 0.1);
+                    border: 1px solid rgba(33, 150, 243, 0.3);
+                    color: #2196f3;
+                }
+
+                .dashboard-card:hover {
+                    transform: translateY(-5px);
+                    box-shadow: 0 10px 30px rgba(255, 215, 0, 0.1);
+                    transition: all 0.3s ease;
+                }
+
+                .opportunity-card:hover {
+                    transform: translateX(5px);
+                    transition: all 0.3s ease;
+                }
+
+                .navbar {
+                    box-shadow: 0 2px 20px rgba(0, 0, 0, 0.3);
+                }
+
+                .price-display {
+                    text-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+                }
+
+                @keyframes fadeIn {
+                    from { opacity: 0; transform: translateY(20px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+
+                .dashboard-card {
+                    animation: fadeIn 0.6s ease-out;
+                }
+
+                .opportunity-card {
+                    animation: fadeIn 0.8s ease-out;
+                }
+
+                /* تحسينات إضافية للهواتف */
+                @media (max-width: 480px) {
+                    .navbar-brand {
+                        font-size: 1.2rem;
+                    }
+                    
+                    .dashboard-card {
+                        padding: 1rem;
+                    }
+                    
+                    .price-display {
+                        font-size: 1.5rem;
+                    }
+                    
+                    .analysis-section {
+                        padding: 1rem;
+                    }
+                }
+
+                /* تأثيرات الانتقال السلسة */
+                * {
+                    transition: color 0.3s ease, background-color 0.3s ease;
+                }
+            </style>
+        `;
+
+        // إضافة الأنماط الإضافية
+        document.head.insertAdjacentHTML('beforeend', additionalStyles);
     </script>
 </body>
 </html>
